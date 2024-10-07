@@ -1,0 +1,223 @@
+[
+    {   "mid":100,
+        "title":"Dashboard",
+        "icon" :"RiDashboardFill",
+        "path" :"/"
+
+    },
+    {   
+        "mid":101,
+        "title":"Purchase",
+        "icon" :"FiShoppingCart",
+        "submenu":true,
+        "smid":10101,
+        "submenuItems":[
+            {   
+                "linkid":1010101,
+                "title":"New Supplier PO",
+                "path" :"/newsupplierpo"
+            },
+            {   
+                "linkid":1010102,
+                "title":"Amend Supplier PO",
+                "path" :"/amandsupplierpo"
+            },
+            {   
+                "linkid":1010103,
+                "title":"New Service Provider PO",
+                "path" :"/newsppo"
+            },
+            {   
+                "linkid":1010104,
+                "title":"Amend Service Provider PO",
+                "path" :"/amendsppo"
+            }
+        ]
+
+    },
+    {   
+        "mid":102,
+        "title":"Sales",
+        "icon" :"FaFileInvoice",
+        "submenu":true,
+        "smid":10201,
+        "submenuItems":[
+            {   
+                "linkid":1020101,
+                "title":"New Client Orders",
+                "path" :"/newclientpo"
+            },
+            {   
+                "linkid":1020102,
+                "title":"Amend Client Orders",
+                "path" :"/amandclientpo"
+            },
+            {   "linkid":1020103,
+                "title":"New Sales Invoice",
+                "path" :"/newsalesinvoce"
+            },
+            {
+                "linkid":1020104,
+                "title":"Asset Sales Invoice",
+                "path" :"/assetsalesinvoice"
+            },
+            {   
+                "linkid":1020105,
+                "title":"Scrap Sales Invoice",
+                "path" :"/scrapsalesinvoice"
+            },
+            {   
+                "linkid":1020106,
+                "title":"Internal Sales Invoice",
+                "path" :"/internalsalesinvoice"
+            }
+        ]
+
+    },
+    {   
+        "mid":103,
+        "title":"Payments",
+        "icon" :"GiPayMoney",
+        "submenu":true,
+        "smid":10301,
+        "submenuItems":[
+            {   
+                "linkid":1030101,
+                "title":"Cash Vouchers",
+                "path" :"/cashvouchers"
+            },
+            {   
+                "linkid":1030102,
+                "title":"Bank Vouchers",
+                "path" :"/bankvouchers"
+            },
+            {   "linkid":1030103,
+                "title":"Cash Transfers",
+                "path" :"/cashtransfers"
+            },
+            {
+                "linkid":1030104,
+                "title":"Bank Transfers",
+                "path" :"/banktransfers"
+            }
+           
+        ]
+
+    },
+    {   
+        "mid":104,
+        "title":"Receipts",
+        "icon" :"GiReceiveMoney",
+        "submenu":true,
+        "smid":10401,
+        "submenuItems":[
+            {   
+                "linkid":1040101,
+                "title":"Client Receipts",
+                "path" :"/clientreceipts"
+            },
+            {   
+                "linkid":1040102,
+                "title":"Other Taxable Receipts",
+                "path" :"/othertaxablereceipt"
+            },
+            {   "linkid":1040103,
+                "title":"Refund",
+                "path" :"/refund"
+            },
+            {
+                "linkid":1030104,
+                "title":"Fixed Deposit Receipt",
+                "path" :"/fdreceipt"
+            }
+           
+        ]
+
+    },
+    {   
+        "mid":105,
+        "title":"Human Resources",
+        "icon" :"MdPeople",
+        "submenu":true,
+        "smid":10501,
+        "submenuItems":[
+            {   
+                "linkid":1050101,
+                "title":"Employee Join",
+                "path" :"/employeejoin"
+            },
+            {   
+                "linkid":1050102,
+                "title":"Employee Attendance",
+                "path" :"/employeeattendance"
+            },
+            {   "linkid":1050103,
+                "title":"Leave Application",
+                "path" :"/leaveapplication"
+            },
+            {
+                "linkid":1050104,
+                "title":"Employee LTA",
+                "path" :"/employeelta"
+            }
+           
+        ]
+
+    },
+    {   
+        "mid":106,
+        "title":"Warehouse",
+        "icon" :"TbBuildingWarehouse",
+        "submenu":true,
+        "smid":10601,
+        "submenuItems":[
+            {   
+                "linkid":1060101,
+                "title":"New Indents",
+                "path" :"/newindent"
+            },
+            {   
+                "linkid":1060102,
+                "title":"Amend Indents",
+                "path" :"/amendindent"
+            },
+            {   "linkid":1060103,
+                "title":"Stock Transfer",
+                "path" :"/stocktransfer"
+            },
+            {
+                "linkid":1050104,
+                "title":"Store Close",
+                "path" :"/storeclosing"
+            }
+           
+        ]
+
+    },
+    {   
+        "mid":107,
+        "title":"Configurations",
+        "icon" :"IoSettingsOutline",
+        "submenu":true,
+        "smid":10701,
+        "submenuItems":[
+            {   
+                "linkid":1070101,
+                "title":"Role Creation",
+                "path" :"/newroles"
+            },
+            {   
+                "linkid":1060102,
+                "title":"User Creation",
+                "path" :"/usercreation"
+            },
+            {   "linkid":1060103,
+                "title":"Assign Hierarchy",
+                "path" :"/assignhierarchy"
+            }
+            
+           
+        ]
+
+    }
+]
