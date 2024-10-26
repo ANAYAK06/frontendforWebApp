@@ -13,7 +13,7 @@ const getAuthHeader = () => {
 
 export const getBudgetForVerification = async (userRoleId, ccidFilter) => {
     try {
-        console.log('Fetching budgets for userRoleId:', userRoleId);
+        
         
         const response = await axios.get(`${API_BASE_URL}/getccbudgetforverification`,{
             headers:getAuthHeader(),
@@ -23,10 +23,10 @@ export const getBudgetForVerification = async (userRoleId, ccidFilter) => {
             },
 
         })
-        console.log('API Response:', response.data);
+        
         return response.data
     } catch (error) {
-        console.error('Error fetching CC Budgets for verification:', error);
+        
     throw error;
         
     }
@@ -40,7 +40,7 @@ export const assignCCBudget = async (budgetData) => {
         })
         return response.data
     } catch (error) {
-        console.error(' Error for Assigning CC Budget', error)
+        
         throw error
         
     }
@@ -54,7 +54,7 @@ export const updateCCBudget = async(id, action, remarks) =>{
         )
         return response.data
     } catch (error) {
-        console.error('Error updating CC Budget:', error);
+       
         throw error
         
     }

@@ -14,6 +14,8 @@ import { FaFileInvoice } from "react-icons/fa";
 import { TbBuildingWarehouse } from "react-icons/tb";
 import { MdLibraryBooks } from "react-icons/md";
 import { Link } from 'react-router-dom'
+import { GrAnalytics } from "react-icons/gr";
+import { FaBook } from "react-icons/fa";
 
 function Sidenav() {
     const dispatch = useDispatch()
@@ -44,7 +46,9 @@ function Sidenav() {
         "TbBuildingWarehouse": <TbBuildingWarehouse />,
         "IoSettingsOutline": <IoSettingsOutline />,
         "IoConstruct":<IoConstruct />,
-        "MdLibraryBooks":<MdLibraryBooks />
+        "MdLibraryBooks":<MdLibraryBooks />,
+        "GrAnalytics":<GrAnalytics />,
+        "FaBook":<FaBook />
     }
 
 

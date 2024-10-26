@@ -15,14 +15,22 @@ import VerifyNewCC from './Pages/VerifyNewCC';
 import UserCostCentre from './Pages/UserCostCentre'
 import DCAcodes from './Pages/DCAcodes';
 import AssignCCBudget from './Pages/AssignCCBudget';
-import VerifyPerformingCCBudget from './Pages/VerifyPerformingCCBudget';
+
 
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import VerifyNPCCBudget from './Pages/VerifyNPCCBudget';
+
 import AssignDCABudget from './Pages/AssignDCABudget';
-import VerifyPCCDcaBudget from './Pages/VerifyPCCDcaBudget';
+
+import BalanceSheet from './Pages/Reports/BalanceSheet';
+import LedgerCreation from './Pages/Accounts/LedgerCreation';
+import VerifyLedger from './Pages/Accounts/VerifyLedger';
+import ProfitAndLoss from './Pages/Reports/ProfitAndLoss';
+import SubGroupCreation from './Pages/Accounts/SubGroupCreation';
+import VerifyGroups from './Pages/Accounts/VerifyGroups';
+import CCBudgetVerification from './Components/CCBudgetVerification';
+import VerifyDcaBudget from './Pages/VerifyDcaBudget';
 
 function App() {
 
@@ -64,10 +72,16 @@ function App() {
           <Route path='/assignusercostcentre' element ={ isLoggedIn ? (<UserCostCentre/>):<Navigate to="/"/>} />
           <Route path='/createnewdcacodes' element ={ isLoggedIn ? (<DCAcodes/>):<Navigate to="/"/>} />
           <Route path='/assignccbudget' element ={ isLoggedIn ? (<AssignCCBudget/>):<Navigate to="/"/>} />
-          <Route path='/verifyccbudget-performing' element ={ isLoggedIn ? (<VerifyPerformingCCBudget/>):<Navigate to="/"/>} />
-          <Route path='/verifyccbudget-nonperforming' element ={ isLoggedIn ? (<VerifyNPCCBudget/>):<Navigate to="/"/>} />
+          
           <Route path='/assigndcabudget' element ={ isLoggedIn ? (<AssignDCABudget/>):<Navigate to="/"/>} />
-          <Route path='/verifydcabudget-performing' element ={ isLoggedIn ? (<VerifyPCCDcaBudget/>):<Navigate to="/"/>} />
+          <Route path='/verifydcabudget/:budgetType' element ={ isLoggedIn ? (<VerifyDcaBudget/>):<Navigate to="/"/>} />
+          <Route path='/balance-sheet' element ={ isLoggedIn ? (<BalanceSheet/>):<Navigate to="/"/>} />
+          <Route path='/create-ledger' element ={ isLoggedIn ? (<LedgerCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-ledger' element ={ isLoggedIn ? (<VerifyLedger checkContent={false} />):<Navigate to="/"/>} />
+          <Route path='/profit-and-loss' element ={ isLoggedIn ? (<ProfitAndLoss/>):<Navigate to="/"/>} />
+          <Route path='/creategroups' element ={ isLoggedIn ? (<SubGroupCreation checkContent={false} />):<Navigate to="/"/>} />
+          <Route path='/verify-group' element ={ isLoggedIn ? (<VerifyGroups/>):<Navigate to="/"/>} />
+          <Route path='/verifyccbudget/:budgetType' element ={ isLoggedIn ? (<CCBudgetVerification/>):<Navigate to="/"/>} />
         
         </Routes>
         

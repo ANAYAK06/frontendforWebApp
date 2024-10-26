@@ -4,6 +4,7 @@ import axios from 'axios'
 import { fetchCostCentreTypes } from '../Slices/costCentreTypeSlices';
 import { assignCCBudget, resetAssignmentSuccess } from '../Slices/ccBudgetSlices'
 import { showToast } from '../utilities/toastUtilities'
+import {fetchEligibleCCForBudget} from '../Slices/costCentreSlices'
 
 function AssignCCBudget() {
 
@@ -32,6 +33,12 @@ function AssignCCBudget() {
 
     const { loading, error, assignmentSuccess } = useSelector((state) => state.ccBudget)
     const costCentreTypes = useSelector((state) => state.costCentreTypes.costCentreTypes)
+
+    const { 
+        eligibleCostCentres, 
+        eligibleCCLoading, 
+        eligibleCCError 
+    } = useSelector(state => state.costCentres);
 
     useEffect(() => {
         dispatch(fetchCostCentreTypes())
@@ -64,21 +71,18 @@ function AssignCCBudget() {
     const fetchEligibleCostCentreForBudgetAssign = useCallback(async () => {
         if (formData.ccid && formData.subId) {
             try {
-                const response = await axios.get('/api/costcentres/eligiblecostcentrefor-buget', {
-                    params: {
-                        ccid: formData.ccid,
-                        subId: formData.subId,
-                        fiscalYear: formData.fiscalYear
-                    }
-                })
-                setCCOption(response.data)
+                await dispatch(fetchEligibleCCForBudget({
+                    ccid: formData.ccid,
+                    subId: formData.subId,
+                    fiscalYear: formData.fiscalYear
+                })).unwrap();
+                
+                setCCOption(eligibleCostCentres);
             } catch (error) {
-                console.error('Failed to fetch eligible cost centers', error);
                 showToast('error', 'Failed to fetch eligible cost centers');
-
             }
         }
-    }, [formData.ccid, formData.subId, formData.fiscalYear])
+    }, [dispatch, formData.ccid, formData.subId, formData.fiscalYear, eligibleCostCentres]);
 
 
 

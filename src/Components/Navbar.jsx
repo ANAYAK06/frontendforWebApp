@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { TfiAnnouncement } from "react-icons/tfi";
 import { fetchNotificationCount, updateNotificationCount } from '../Slices/notificationSlices'
 import { Link } from 'react-router-dom';
-import { IoChatbubbleEllipsesOutline } from "react-icons/io5";
+
 import Trackchatbot from './Trackchatbot';
 
 
@@ -33,7 +33,7 @@ function Navbar({ isLoggedIn, userName, roleName, onLogout }) {
   const userMenu = useSelector(state => state.userMenu.userMenu);
   const notificationCount = useSelector(state => state.notification.notificationCount)
 
-  console.log( 'Track chat bot', Trackchatbot)
+
 
 
   useEffect(() => {
@@ -104,6 +104,27 @@ function Navbar({ isLoggedIn, userName, roleName, onLogout }) {
     history(path)
   }
 
+  const InboxButton = () => (
+    <div className='relative inline-block mr-2'>
+      {notificationCount.count > 0 ? (
+        <Link to='/openinbox'>
+          <button className='block rounded-full items-center text-center border mx-4 p-2 shadow focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 hover:bg-slate-200'>
+            <IoMailOpenOutline className='text-xl text-blue text-center' />
+          </button>
+        </Link>
+      ) : (
+        <button className='block rounded-full items-center text-center border mx-4 p-2 shadow opacity-50 cursor-not-allowed'>
+          <IoMailOpenOutline className='text-xl text-gray-400 text-center' />
+        </button>
+      )}
+      {notificationCount.count > 0 && (
+        <span className='top-0 absolute right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full'>
+          {notificationCount.count}
+        </span>
+      )}
+    </div>
+  );
+
 
 
   return (
@@ -170,8 +191,8 @@ function Navbar({ isLoggedIn, userName, roleName, onLogout }) {
         <div className='flex justify-between items-center '>
           <button className='block rounded-full items-center text-center border mx-4 p-2 shadow focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 hover:bg-slate-200 '><TfiAnnouncement className=' text-xl text-blue text-center ' /></button>
           <button className='block rounded-full items-center text-center border mx-4 p-2 shadow focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 hover:bg-slate-200'><FaRegBell className=' text-xl text-blue text-center ' /></button>
-          <div className='relative inline-block mr-2'>
-            <button className='block rounded-full items-center text-center border border-indigo-600 mx-4 p-2 shadow focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 hover:bg-slate-200' ><Link to={'/openinbox'}><IoMailOpenOutline className='text-xl text-blue text-center' /></Link></button>
+          {/* <div className='relative inline-block mr-2'>
+            <button className='block rounded-full items-center text-center border  mx-4 p-2 shadow focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 hover:bg-slate-200' ><Link to={'/openinbox'}><IoMailOpenOutline className='text-xl text-blue text-center' /></Link></button>
             {
               notificationCount.count > 0 &&
               <span className='top-0 absolute right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full'>
@@ -183,14 +204,9 @@ function Navbar({ isLoggedIn, userName, roleName, onLogout }) {
             }
 
 
-          </div>
-          <button
-            onClick={() => setIsTrackBotOpen(true)}
-            className='block rounded-full items-center text-center border mx-4 p-2 shadow focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 hover:bg-slate-200'
-          >
-            <IoChatbubbleEllipsesOutline className='text-xl text-blue text-center' />
-          </button>
-
+          </div> */}
+          <InboxButton/>
+          
 
           {
             isLoggedIn ? (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { FaChevronDown } from "react-icons/fa6";
 import { FaRegEdit, FaTimes } from "react-icons/fa";
 import { useDispatch, useSelector } from 'react-redux';
@@ -9,8 +9,7 @@ import { useParams } from 'react-router-dom';
 
 
 
-function VerifyPCCDcaBudget({ budgetType: propBudgetType, checkContent, onEmpty }) {
-
+function VerifyDcaBudget({ budgetType: propBudgetType, checkContent, onEmpty }) {
     const params = useParams();
     const effectiveBudgetType = propBudgetType || params.budgetType || 'performing';
 
@@ -22,8 +21,8 @@ function VerifyPCCDcaBudget({ budgetType: propBudgetType, checkContent, onEmpty 
     const [remarks, setRemarks] = useState('');
 
 
-    
-    const getBudgetTypeTitle = () => {
+
+    const getBudgetTypeTitle = useCallback(() => {
         switch (effectiveBudgetType) {
             case 'performing':
                 return 'Performing DCA Budget';
@@ -34,7 +33,7 @@ function VerifyPCCDcaBudget({ budgetType: propBudgetType, checkContent, onEmpty 
             default:
                 return 'DCA Budget';
         }
-    };
+    }, [effectiveBudgetType])
 
 
 
@@ -46,19 +45,19 @@ function VerifyPCCDcaBudget({ budgetType: propBudgetType, checkContent, onEmpty 
 
     useEffect(() => {
         if (updateSuccess) {
-            showToast('success', ` verified successfully`)
+            showToast('success', `${getBudgetTypeTitle()} verified successfully`)
             closeBudgetDetails()
             dispatch(fetchDCABudgetForVerification({ userRoleId }))
             dispatch(resetUpdateSuccess())
         }
         if (rejectSuccess) {
-            showToast('error', ` Rejected Successfully`)
+            showToast('error', `${getBudgetTypeTitle()} Rejected Successfully`)
             closeBudgetDetails()
             dispatch(fetchDCABudgetForVerification({ userRoleId }))
             dispatch(resetRejectSuccess())
 
         }
-    }, [updateSuccess, rejectSuccess, dispatch, userRoleId])
+    }, [updateSuccess, rejectSuccess, dispatch, userRoleId, getBudgetTypeTitle])
 
     useEffect(() => {
         if (checkContent && !loading && dcaBudgetForVerification.length === 0) {
@@ -117,59 +116,62 @@ function VerifyPCCDcaBudget({ budgetType: propBudgetType, checkContent, onEmpty 
         <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-indigo-500"></div>
     </div>;
 
-    if (error) return <div className="text-red-500 text-center">Error: {error}</div>;
+    if (error) {
+        return <div className="text-red-500 text-center">Error: {error.message || JSON.stringify(error)}</div>;
+    }
 
-    if (!dcaBudgetForVerification || dcaBudgetForVerification.length === 0) return null
+    if (!dcaBudgetForVerification || dcaBudgetForVerification.length === 0) return null;
+
 
 
     return (
         <div className='w-full bg-white shadow-md rounded-md overflow-hidden mb-4 mt-4'>
-            
-                <div className='p-4 bg-slate-100 flex justify-between items-center '>
-                    
-                        <div className='px-2 py-2 rounded-full bg-slate-300 cursor-pointer' onClick={toggleInbox}>
-                            <FaChevronDown className={`text-gray-600 font-bold ${inboxExpanded ? 'rotate-180 duration-300' : ''}`} />
-                        </div>
-                        <div><h3 className='text-gray-600 font-bold'>{getBudgetTypeTitle()} Verification</h3></div>
-                        <div className='font-bold text-red-500'>({dcaBudgetForVerification.length})</div>
-                    
-                    <div className={`transition-max-height duration-500 ease-in-out overflow-hidden ${inboxExpanded ? 'max-h-screen' : 'max-h-0'}`}>
-                        {inboxExpanded &&  (
-                            <div className='p-4 bg-white'>
-                                <div className=' overflow-x-auto'>
-                                    <table className='min-w-full'>
-                                        <thead className='text-gray-700'>
-                                            <tr>
-                                                <th className='border px-4 py-2'>Action</th>
-                                                <th className='border px-4 py-2'>CC No</th>
-                                                <th className='border px-4 py-2'>CC Name</th>
-                                                <th className='border px-4 py-2'>Total Budget</th>
-                                                <th className='border px-4 py-2'>Assigned Budget</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className='item-centre justify-center'>
-                                            {dcaBudgetForVerification.map((budget) => (
-                                                <tr key={budget.ccNo}>
-                                                    <td className='border px-4 py-2'>
-                                                        <FaRegEdit className='text-yellow-600 cursor-pointer text-2xl' onClick={() => openBudgetDetails(budget)} />
-                                                    </td>
-                                                    <td className='border px-4 py-2'>{budget.ccNo}</td>
-                                                    <td className='border px-4 py-2'>{budget.ccName}</td>
-                                                    <td className='border px-4 py-2'>{budget.ccBudget.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}</td>
-                                                    <td className='border px-4 py-2'>{budget.assignedBudget.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-                        {inboxExpanded && dcaBudgetForVerification.length === 0 && (
-                            <div className='mt-4 text-center text-gray-500'>No budgets available for verification</div>
-                        )}
-                    </div>
+
+            <div className='p-4 bg-slate-100 flex justify-between items-center '>
+
+                <div className='px-2 py-2 rounded-full bg-slate-300 cursor-pointer' onClick={toggleInbox}>
+                    <FaChevronDown className={`text-gray-600 font-bold ${inboxExpanded ? 'rotate-180 duration-300' : ''}`} />
                 </div>
-            
+                <div><h3 className='text-gray-600 font-bold'>{getBudgetTypeTitle()} Verification</h3></div>
+                <div className='font-bold text-red-500'>({dcaBudgetForVerification.length})</div>
+
+                <div className={`transition-max-height duration-500 ease-in-out overflow-hidden ${inboxExpanded ? 'max-h-screen' : 'max-h-0'}`}>
+                    {inboxExpanded && (
+                        <div className='p-4 bg-white'>
+                            <div className=' overflow-x-auto'>
+                                <table className='min-w-full'>
+                                    <thead className='text-gray-700'>
+                                        <tr>
+                                            <th className='border px-4 py-2'>Action</th>
+                                            <th className='border px-4 py-2'>CC No</th>
+                                            <th className='border px-4 py-2'>CC Name</th>
+                                            <th className='border px-4 py-2'>Total Budget</th>
+                                            <th className='border px-4 py-2'>Assigned Budget</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className='item-centre justify-center'>
+                                        {dcaBudgetForVerification.map((budget) => (
+                                            <tr key={budget.ccNo}>
+                                                <td className='border px-4 py-2'>
+                                                    <FaRegEdit className='text-yellow-600 cursor-pointer text-2xl' onClick={() => openBudgetDetails(budget)} />
+                                                </td>
+                                                <td className='border px-4 py-2'>{budget.ccNo}</td>
+                                                <td className='border px-4 py-2'>{budget.ccName}</td>
+                                                <td className='border px-4 py-2'>{budget.ccBudget.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}</td>
+                                                <td className='border px-4 py-2'>{budget.assignedBudget.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                    {inboxExpanded && dcaBudgetForVerification.length === 0 && (
+                        <div className='mt-4 text-center text-gray-500'>No budgets available for verification</div>
+                    )}
+                </div>
+            </div>
+
 
             {selectedBudget && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
@@ -238,7 +240,9 @@ function VerifyPCCDcaBudget({ budgetType: propBudgetType, checkContent, onEmpty 
                                     </div>
                                 </div>
 
-                                <SignatureAndRemarks signatures={selectedBudget.signatureAndRemarks} />
+                                <SignatureAndRemarks 
+                            signatures={Array.isArray(selectedBudget.signatureAndRemarks) ? selectedBudget.signatureAndRemarks : []} 
+                        />
 
                                 <div className="mt-4">
                                     <label htmlFor="remarks" className="block text-sm font-medium text-gray-700">
@@ -278,7 +282,7 @@ function VerifyPCCDcaBudget({ budgetType: propBudgetType, checkContent, onEmpty 
                 </div>
             )}
         </div>
-    );
+    )
 }
 
-export default VerifyPCCDcaBudget
+export default VerifyDcaBudget

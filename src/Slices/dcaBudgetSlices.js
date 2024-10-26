@@ -71,10 +71,10 @@ export const fetchDCABudgetForVerification = createAsyncThunk(
     'dcaBudget/fetchDCABudgetForVerification',
     async(payload, {rejectWithValue}) => {
        try {
-        console.log("Fetching DCA budgets with payload:", payload);
+       
         const dcaBudgets = await getDCABudgetForVerificationAPI(payload.userRoleId)
 
-        console.log("API response:", dcaBudgets ); 
+         
         return dcaBudgets
        
        } catch (error) {
@@ -206,8 +206,7 @@ export const rejectDCABudget = createAsyncThunk(
         })
         .addCase(fetchDCABudgetForVerification.fulfilled, (state, action) => {
             state.loading = false;
-            state.dcaBudgetForVerification = action.payload.dcaBudgets
-            console.log('updated dca budget for verification' , state.dcaBudgetForVerification)
+            
         })
         .addCase(fetchDCABudgetForVerification.rejected, (state, action) => {
             state.loading = false;

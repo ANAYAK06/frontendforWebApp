@@ -1,423 +1,425 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import Select from 'react-select'
 import { fetchStates } from '../Slices/stateSlices'
 import { fetchCostCentreTypes } from '../Slices/costCentreTypeSlices'
-import { VscError } from "react-icons/vsc";
-import { FaCircleCheck } from "react-icons/fa6";
-import axios from 'axios'
-import ConfirmModal from '../Components/ConfirmModal'
-import Success from '../Components/Success'
-
+import { createNewCostCentre, checkCostCentreNumberUniqueness, resetCostCentreState } from '../Slices/costCentreSlices'
+import { showToast } from '../utilities/toastUtilities'
+import CustomDatePicker from '../Components/CustomDatePicker'
 
 function NewCC() {
-
   const dispatch = useDispatch()
+  const { loading, error, success, isCostCentreNumberUnique } = useSelector((state) => state.costCentres)
+  const { ccstate } = useSelector((state) => state.ccstate)
+  const costCentreTypes = useSelector((state) => state.costCentreTypes.costCentreTypes)
 
+  const initialFormState = useMemo(() => ({
+    ccNo: '',
+    ccName: '',
+    ccType: '',
+    subCCType: '',
+    location: '',
+    address: '',
+    projectHandling: { name: '', designation: '', phone: '' },
+    client: { name: '', address: '', phone: '' },
+    contact: { name: '', designation: '', phone: '' },
+    finalOfferRef: { finalOfferRef: '', finalOfferDate: '' },
+    finalAcceptanceRef: { finalAcceptanceRef: '', finalAcceptanceDate: '' },
+    dayLimit: '',
+    voucherLimit: '',
+    remarks: ''
+  }), [])
+
+  const [formData, setFormData] = useState(initialFormState)
   const [selectedCostCentreType, setSelectedCostCentreType] = useState(null)
   const [selectedSubCCType, setSelectedSubCCType] = useState(null)
   const [subCCType, setSubCCType] = useState([])
-  
-  const [formData, setFormData] = useState({
-    ccNo: '',
-    ccName: '',
-    location: '',
-    address:'',
-    projectHandling: {
-      name: '',
-      designation: '',
-      phone: ''
-    },
-    client: {
-      name: '',
-      address: '',
-      phone: ''
-    },
-    contact: {
-      name: '',
-      designation: '',
-      phone: ''
-    },
-    finalOfferRef: {
-      finalOfferRef: '',
-      finalOfferDate: ''
-    },
-    finalAcceptanceRef: {
-      finalAcceptanceRef: '',
-      finalAcceptanceDate: ''
-    },
-    dayLimit: '',
-    voucherLimit: ''
-  });
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
-  const [ccNoStatus, setCcNoStatus] = useState(null)
-  const [isConfirm, setIsConfirm] = useState(false)
 
-
-  const { ccstate } = useSelector((state) => state.ccstate)
-  const costCentreTypes = useSelector((state => state.costCentreTypes.costCentreTypes))
+  const handleReset = useCallback(() => {
+    setFormData(initialFormState);
+    setSelectedCostCentreType(null);
+    setSelectedSubCCType(null);
+    // Ensure location is also reset
+    setFormData(prev => ({ ...prev, location: '' }));
+  }, [initialFormState]);
 
   useEffect(() => {
     dispatch(fetchStates())
     dispatch(fetchCostCentreTypes())
-
-
   }, [dispatch])
+
+  useEffect(() => {
+    if (ccstate[0]?.states.length > 0 && !formData.location) {
+      setFormData(prev => ({ ...prev, location: ccstate[0].states[0].code }));
+    }
+  }, [ccstate, formData.location]);
+
   useEffect(() => {
     if (selectedCostCentreType) {
       const selectedType = costCentreTypes.find(type => type.label === selectedCostCentreType.label)
       setSubCCType(selectedType ? selectedType.subType : [])
       setSelectedSubCCType(null)
-    }else{
+    } else {
       setSubCCType([])
       setSelectedSubCCType(null)
     }
-
-
   }, [selectedCostCentreType, costCentreTypes])
 
+  useEffect(() => {
+    if (success) {
+      showToast('success', 'Cost Centre created successfully')
+      handleReset()
+      dispatch(resetCostCentreState())
+    }
+  }, [success, dispatch, handleReset])
 
+  useEffect(() => {
+    if (error) {
+      showToast('error', error)
+    }
+  }, [error])
 
-
-
-  const stateOptions = ccstate.length > 0 ? ccstate[0].states.map((option => ({
-    value: option.code,
-    label: option.name
-
-  }))) : []
-
-  const handleCostCentreTypeChange = (selectedOption) => {
-    setSelectedCostCentreType(selectedOption)
+  const handleChange = useCallback((e) => {
+    const { name, value, type, checked } = e.target
     setFormData(prevState => ({
       ...prevState,
-      ccType:selectedOption.value,
-      subCCType: null
+      [name]: type === 'checkbox' ? checked : value
     }))
-  }
 
-  const isPerforming  = ()=>{
-    return selectedCostCentreType && selectedCostCentreType.label && selectedCostCentreType.value &&
-    (selectedCostCentreType.label === 'Performing' || selectedCostCentreType.value === parseInt(102))
-  };
-
-  const handleSubCostCentreType = (selectedOption) => {
-    setSelectedSubCCType(selectedOption)
-
-  }
-  console.log('selected sub cc', selectedSubCCType)
-
-  const handleInputChange = async (e) => {
-    const { name, value } = e.target
-    setFormData({
-      ...formData,
-      [name]: value
-    })
     if (name === 'ccNo') {
-      const formatedValue = `CC-${value}`
-      try {
-        const response = await axios.get(`/api/costcentres/checkccno/${formatedValue}`)
-        setCcNoStatus(response.data.exists ? 'exists' : 'available')
-
-      } catch (error) {
-        console.error('Error checking ccNo:', error)
-        setCcNoStatus(null)
-
-      }
+      dispatch(checkCostCentreNumberUniqueness(`CC-${value}`))
     }
-  }
+  }, [dispatch])
 
-  const handleNestedChange = (section, e) => {
+  const handleBlur = useCallback((e) => {
     const { name, value } = e.target
-    setFormData({
-      ...formData,
+    if (name === 'ccNo' && value) {
+      dispatch(checkCostCentreNumberUniqueness(`CC-${value}`))
+        .unwrap()
+        .then((result) => {
+          if (result) {
+            showToast('success', 'CC number is available')
+          } else {
+            showToast('error', 'CC number already exists')
+          }
+        })
+        .catch((error) => {
+          showToast('error', 'Error checking CC number')
+        })
+    }
+  }, [dispatch])
+
+  const handleNestedChange = useCallback((section, e) => {
+    const { name, value } = e.target
+    setFormData(prevState => ({
+      ...prevState,
       [section]: {
-        ...formData[section],
+        ...prevState[section],
         [name]: value
       }
-    })
-  }
+    }))
+  }, [])
 
-  const handleDateChange = (section, name, value) => {
-    setFormData({
-      ...formData,
+  const handleDateChange = useCallback((section, name, value) => {
+    setFormData(prevState => ({
+      ...prevState,
       [section]: {
-        ...formData[section],
+        ...prevState[section],
         [name]: value
       }
-    })
-  }
+    }))
+  }, [])
 
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback((e) => {
     e.preventDefault()
-    const costCentreData = {
+    if (!formData.remarks.trim()) {
+      showToast('warning', 'Please add remarks before submitting')
+      return
+    }
+    if (isCostCentreNumberUnique === false) {
+      showToast('error', 'Cost Centre number already exists')
+      return
+    }
+    dispatch(createNewCostCentre({
       ...formData,
-      
-      ccType: selectedCostCentreType.value,
-      subCCType: selectedSubCCType ? selectedSubCCType.value : null,
-      levelId: 1,
-      status: 'Verification'
-    };
+      ccType: selectedCostCentreType?.value,
+      subCCType: selectedSubCCType?.value
+    }))
+  }, [formData, isCostCentreNumberUnique, selectedCostCentreType, selectedSubCCType, dispatch])
 
-    if(selectedCostCentreType.label !=='Performing'){
-      delete costCentreData.projectHandling
-      delete costCentreData.client
-      delete costCentreData.contact
-    } else {
-      delete costCentreData.address
-    }
-    try {
-      const response = await axios.post('/api/costcentres/createcostcentre', costCentreData)
-
-      setSuccess('Cost Centre Created Successfully')
-      setError(null)
-      console.log('Data CC Details:', response)
-      setFormData({
-        ccNo: '',
-        ccName: '',
-        location: '',
-        address:'',
-        projectHandling:selectedCostCentreType.label ==='Performing' ? {
-          name: '',
-          designation: '',
-          phone: ''
-        }: undefined,
-        client: selectedCostCentreType.label ==='Performing' ?{
-          name: '',
-          address: '',
-          phone: ''
-        }:undefined,
-        contact:selectedCostCentreType.label ==='Performing' ? {
-          name: '',
-          designation: '',
-          phone: ''
-        }:undefined,
-        finalOfferRef: {
-          finalOfferRef: '',
-          finalOfferDate: ''
-        },
-        finalAcceptanceRef: {
-          finalAcceptanceRef: '',
-          finalAcceptanceDate: ''
-        },
-        dayLimit: '',
-        voucherLimit: ''
-      })
-      setSelectedCostCentreType(null)
-      setSelectedSubCCType(null)
-      
-
-    } catch (error) {
-      setError(error.response?.data?.message || 'An error occurred');
-      setSuccess(null);
-
-    }
-  }
-
-
-  const handleConfirm = async (e)=>{
-    e.preventDefault()
-    setIsConfirm(true)
-  }
-
-  const onCancel = async ()=>{
-    setIsConfirm(false)
-    setSuccess(false)
-  }
-
-
-
+  const isPerforming = selectedCostCentreType?.label === 'Performing' || selectedCostCentreType?.value === 102
 
   return (
-    <div className="px-5 py-3">
-      <form onSubmit={handleConfirm}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="cctype" className="block text-sm font-medium text-gray-700">Cost Centre Type</label>
-            <Select className="mt-1"
+    <div className="container mx-auto p-4 py-8 bg-white rounded-lg shadow-xl">
+      <h2 className="text-3xl font-bold mb-6 text-gray-800">Create New Cost Centre</h2>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Cost Centre Type</label>
+            <Select
               options={costCentreTypes}
               value={selectedCostCentreType}
-              onChange={handleCostCentreTypeChange}
-              placeholder='Cost Centre Type '
-
+              onChange={(option) => {
+                setSelectedCostCentreType(option)
+                setFormData(prev => ({ ...prev, ccType: option.value }))
+              }}
+              placeholder="Select Cost Centre Type"
+              className="mt-1"
             />
           </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="ccsubtype" className="block text-sm font-medium text-gray-700">Cost Centre sub Type</label>
-
-            <Select className="mt-1"
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Cost Centre Sub Type</label>
+            <Select
               options={subCCType}
-              placeholder=' Sub CC Type'
-              onChange={handleSubCostCentreType}
               value={selectedSubCCType}
-              isDisabled ={!selectedCostCentreType}
+              onChange={(option) => {
+                setSelectedSubCCType(option)
+                setFormData(prev => ({ ...prev, subCCType: option.value }))
+              }}
+              placeholder="Select Sub CC Type"
+              isDisabled={!selectedCostCentreType}
+              className="mt-1"
             />
-
           </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="ccnumber" className="block text-sm font-medium text-gray-700">Cost Centre Number</label>
-            <div className='flex items-center'>
-              <input placeholder='Enter a CC Code Number' type="text" className={`appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${ccNoStatus=== 'exists' ? 'text-red-600 border-red-600':''}` }
-                onChange={handleInputChange}
-                value={formData.ccNo}
-                name='ccNo'
-              />
-              {
-                ccNoStatus === 'exists' ? (
-                  <VscError className='ml-1 text-red-600' />
-
-                ) : ccNoStatus === 'available' ? (
-                  <FaCircleCheck className='ml-1 text-green-600' />
-                ) : null
-              }
-
-            </div>
-
-          </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="ccname" className="block text-sm font-medium text-gray-700">Cost Centre Name</label>
+          <div>
+            <label htmlFor="ccNo" className="block text-sm font-medium text-gray-700">Cost Centre Number</label>
             <input
-              name='ccName'
-              onChange={handleInputChange}
+              type="text"
+              id="ccNo"
+              name="ccNo"
+              value={formData.ccNo}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="ccName" className="block text-sm font-medium text-gray-700">Cost Centre Name</label>
+            <input
+              type="text"
+              id="ccName"
+              name="ccName"
               value={formData.ccName}
-              type="text" className='appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-
-          </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700">Location/State</label>
-            <Select className="mt-1"
-              options={stateOptions}
-              onChange={(selectedOption) => setFormData({ ...formData, location: selectedOption.value })}
-              value={stateOptions.find(option => option.value === formData.location)}
-
-              placeholder='Select a State'
-
+              onChange={handleChange}
+              className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              required
             />
           </div>
-          {isPerforming() && (
-          <>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="incharge" className="block text-sm font-medium text-gray-700">Project Handling</label>
-            <input name='name' type="text" placeholder='Name' className='mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm '
-              onChange={(e) => handleNestedChange('projectHandling', e)} value={formData.projectHandling?.name || ''} />
-            <input name='designation' type="text" placeholder='Designation' className=' mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm '
-              onChange={(e) => handleNestedChange('projectHandling', e)} value={formData.projectHandling?.designation||''} />
-            <input name='phone' type="number" placeholder='Phone Number' className=' mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm '
-              onChange={(e) => handleNestedChange('projectHandling', e)} value={formData.projectHandling?.phone ||''} />
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Location/State</label>
+            <Select
+              options={ccstate[0]?.states.map(state => ({ value: state.code, label: state.name }))}
+              value={ccstate[0]?.states
+                .filter(state => state.code === formData.location)
+                .map(state => ({ value: state.code, label: state.name }))[0]}
+              onChange={(selectedOption) => setFormData(prev => ({ ...prev, location: selectedOption.value }))}
+              placeholder="Select a State"
+              className="mt-1"
+            />
           </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="client" className="block text-sm font-medium text-gray-700">Client Details</label>
-            <input
-              name='name'
-              onChange={(e) => handleNestedChange('client', e)} value={formData.client?.name||''}
-              type="text" placeholder='Client Name' className=' mt-1appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-            <input
-              name='address'
-              onChange={(e) => handleNestedChange('client', e)} value={formData.client?.address||''}
-              type="text" placeholder='Address' className=' mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-            <input
-              name='phone'
-              onChange={(e) => handleNestedChange('client', e)} value={formData.client?.phone||''}
-              type="number" placeholder='Phone Number' className='mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-          </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="clientContact" className="block text-sm font-medium text-gray-700">Client Contact Person </label>
-            <input
-              name='name'
-              onChange={(e) => handleNestedChange('contact', e)} value={formData.contact?.name||''}
-              type="text" placeholder='Name' className=' mt-1appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-            <input
-              name='designation'
-              onChange={(e) => handleNestedChange('contact', e)} value={formData.contact?.designation||''}
-              type="text" placeholder='Designation' className=' mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-            <input
-              name='phone'
-              onChange={(e) => handleNestedChange('contact', e)} value={formData.contact?.phone||''}
-              type="number" placeholder='Phone Number' className='mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-          </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="offer" className="block text-sm font-medium text-gray-700">Final Offer Ref No</label>
-            <input
-              name='finalOfferRef'
-              onChange={(e) => handleNestedChange('finalOfferRef', e)} value={formData.finalOfferRef?.finalOfferRef||''}
-              type="text" className='appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-          </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="offerdate" className="block text-sm font-medium text-gray-700 cursor-pointer">Final Offer Date</label>
-            <input type="date"
-
-              onChange={(e) => handleDateChange('finalOfferRef', 'finalOfferDate', e.target.value)} value={formData.finalOfferRef?.finalOfferDate||''}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
-             
-
-          </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="offeaccept" className="block text-sm font-medium text-gray-700">Final Offer Acceptance No</label>
-            <input type="text"
-              name='finalAcceptanceRef'
-              onChange={(e) => handleNestedChange('finalAcceptanceRef', e)} value={formData.finalAcceptanceRef?.finalAcceptanceRef||''}
-              className='appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-          </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="offeraccepted" className="block text-sm font-medium text-gray-700 cursor-pointer">Final Offer Accepted Date</label>
-            <input type="date"
-              onChange={(e) => handleDateChange('finalAcceptanceRef', 'finalAcceptanceDate', e.target.value)} value={formData.finalAcceptanceRef?.finalAcceptanceDate||''}
-              className=" block w-full px-3 py-2 border cursor-pointer  border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
-          </div>
-          </>
-          )}
-          {
-            !isPerforming() && (
-              <div className='m-1 px-2 py-2'>
-                <label htmlFor="address" className='block text-sm font-medium text-gray-700'>Address</label>
-                <textarea name="address" id="address" rows="3"
-                className='mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
-                placeholder='Enter Address'
+          {!isPerforming && (
+            <div>
+              <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
+              <textarea
+                id="address"
+                name="address"
+                rows="3"
                 value={formData.address}
-                onChange={handleInputChange}
-                ></textarea>
-              </div>
-            )
-          }
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="daylimit" className="block text-sm font-medium text-gray-700">Day Limit for Cash Transactions</label>
-            <input type="text"
-              name='dayLimit'
-              onChange={handleInputChange}
-              className='appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-          </div>
-          <div className="m-1 px-2 py-2">
-            <label htmlFor="voucherlimit" className="block text-sm font-medium text-gray-700">Voucher Limit </label>
-            <input type="text"
-              name='voucherLimit'
-              onChange={handleInputChange}
-              className='appearance-none block w-full px-3 py-2 border border-gray-300 rounded-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ' />
-          </div>
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              ></textarea>
+            </div>
+          )}
+        </div>
 
+        {isPerforming && (
+          <>
+            <div className="grid grid-cols-2 gap-6 mt-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Project Handling</h3>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Name"
+                    value={formData.projectHandling.name}
+                    onChange={(e) => handleNestedChange('projectHandling', e)}
+                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    name="designation"
+                    placeholder="Designation"
+                    value={formData.projectHandling.designation}
+                    onChange={(e) => handleNestedChange('projectHandling', e)}
+                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="Phone Number"
+                    value={formData.projectHandling.phone}
+                    onChange={(e) => handleNestedChange('projectHandling', e)}
+                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Client Details</h3>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Client Name"
+                    value={formData.client.name}
+                    onChange={(e) => handleNestedChange('client', e)}
+                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <textarea
+                    name="address"
+                    placeholder="Client Address"
+                    value={formData.client.address}
+                    onChange={(e) => handleNestedChange('client', e)}
+                    rows="2"
+                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  ></textarea>
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="Client Phone Number"
+                    value={formData.client.phone}
+                    onChange={(e) => handleNestedChange('client', e)}
+                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="mt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Client Contact Person</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="Contact Name"
+                  value={formData.contact.name}
+                  onChange={(e) => handleNestedChange('contact', e)}
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <input
+                  type="text"
+                  name="designation"
+                  placeholder="Contact Designation"
+                  value={formData.contact.designation}
+                  onChange={(e) => handleNestedChange('contact', e)}
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="Contact Phone Number"
+                  value={formData.contact.phone}
+                  onChange={(e) => handleNestedChange('contact', e)}
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-6 mt-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Final Offer Reference</h3>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    name="finalOfferRef"
+                    placeholder="Final Offer Reference"
+                    value={formData.finalOfferRef.finalOfferRef}
+                    onChange={(e) => handleNestedChange('finalOfferRef', e)}
+                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <CustomDatePicker
+                    selectedDate={formData.finalOfferRef.finalOfferDate}
+                    onChange={(date) => handleDateChange('finalOfferRef', 'finalOfferDate', date)}
+                    label="Final Offer Date"
+                  />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Final Acceptance Reference</h3>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    name="finalAcceptanceRef"
+                    placeholder="Final Acceptance Reference"
+                    value={formData.finalAcceptanceRef.finalAcceptanceRef}
+                    onChange={(e) => handleNestedChange('finalAcceptanceRef', e)}
+                    className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <CustomDatePicker
+                    selectedDate={formData.finalAcceptanceRef.finalAcceptanceDate}
+                    onChange={(date) => handleDateChange('finalAcceptanceRef', 'finalAcceptanceDate', date)}
+                    label="Final Acceptance Date"
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="dayLimit" className="block text-sm font-medium text-gray-700">Day Limit for Cash Transactions</label>
+            <input
+              type="text"
+              id="dayLimit"
+              name="dayLimit"
+              value={formData.dayLimit}
+              onChange={handleChange}
+              className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="voucherLimit" className="block text-sm font-medium text-gray-700">Voucher Limit</label>
+            <input
+              type="text"
+              id="voucherLimit"
+              name="voucherLimit"
+              value={formData.voucherLimit}
+              onChange={handleChange}
+              className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
         </div>
-        <div className="m-auto px-2 py-2 items-center flex gap-2">
-          <button className=' bg-indigo-600 text-white  py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:bg-indigo-700' type='submit'>Submit</button>
-          <button type='button' className=' bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded'>Cancel</button>
-        </div>
+
         <div>
-          {isConfirm && (
-            <ConfirmModal
-            title="Confirm Cost Centre Registration"
-            message={`Do you want to Register  ${formData.ccName} and CC Code ${formData.ccNo} as a New Cost Centre `}
-            onConfirm={handleSubmit}
-            onCancel={onCancel}
-            />
-          )}
-          {error && <div className='text-red-600'>{error} </div>}
-          {success && (
-            <Success
-            onClose={onCancel}
-            />
-          )}
+          <label htmlFor="remarks" className="block text-sm font-medium text-gray-700">Remarks</label>
+          <textarea
+            id="remarks"
+            name="remarks"
+            rows="3"
+            value={formData.remarks}
+            onChange={handleChange}
+            className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            required
+          ></textarea>
+        </div>
+
+        <div className="flex justify-end space-x-4">
+          <button
+            type="button"
+            onClick={handleReset}
+            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Reset
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {loading ? 'Creating...' : 'Create Cost Centre'}
+          </button>
         </div>
       </form>
-
     </div>
   )
 }

@@ -9,6 +9,11 @@ import notificationSlices from "../Slices/notificationSlices";
 import costCentreSlices from "../Slices/costCentreSlices";
 import ccBudgetSlices from "../Slices/ccBudgetSlices";
 import dcaBudgetSlices from "../Slices/dcaBudgetSlices";
+import reportSlices from "../Slices/reportsSlices";
+import ledgerSlice from "../Slices/ledgerSlices";
+import groupSlice from "../Slices/groupSlices";
+import dashboardSlice from "../Slices/dashboardSlices"
+
 
 
 
@@ -23,7 +28,12 @@ const  store = configureStore({
         notification:notificationSlices,
         costCentres:costCentreSlices,
         ccBudget: ccBudgetSlices,
-        dcaBudget: dcaBudgetSlices
+        dcaBudget: dcaBudgetSlices,
+        reports: reportSlices,
+        ledger: ledgerSlice,
+        group: groupSlice,
+        dashboardPreference:dashboardSlice
+
 
 
     }

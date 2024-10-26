@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { IoClose, IoHandRight, IoRemove, IoSend } from "react-icons/io5";
+import TrackbotIcon from './TrackbotIcon';
 
-function Trackchatbot({isOpen, onClose}) {
+function Trackchatbot() {
 
+
+  const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState([])
   const [inputMessage, setInputMessage] = useState('')
@@ -52,9 +55,16 @@ function Trackchatbot({isOpen, onClose}) {
     }
   };
 
-  if(!isOpen) return null
+  const toggleTrackbot = () => {
+    setIsOpen(!isOpen)
+    setIsMinimized(false)
+  }
+ 
+  if(!isOpen) return <TrackbotIcon onClick={toggleTrackbot} />
+
+
   return (
-    <div className={`fixed right-4 bottom-5 w-96 bg-white shadow-lg transition-all duration-300 ease-in-out ${isMinimized ? 'h-14' : 'h-[calc(100vh-6rem)] max-h-[600px]'} animate-slide-in`}>
+    <div className={`fixed right-4 bottom-5 w-96 bg-white shadow-lg transition-all duration-300 ease-in-out ${isMinimized ? 'h-14' : 'h-[calc(100vh-6rem)] max-h-[600px]'} animate-slide-up `}>
       {/* Header */}
       <div className="flex justify-between items-center p-4 bg-indigo-600 text-white rounded-t-lg">
         <h2 className="text-lg font-semibold  animate-pulse">TrackBot</h2>
@@ -62,7 +72,7 @@ function Trackchatbot({isOpen, onClose}) {
           <button onClick={() => setIsMinimized(!isMinimized)} className="hover:text-gray-300 transition-colors duration-200">
             <IoRemove size={20} className="transform hover:scale-110 transition-transform duration-200" />
           </button>
-          <button onClick={onClose} className="hover:text-gray-300 transition-colors duration-200">
+          <button onClick={toggleTrackbot} className="hover:text-gray-300 transition-colors duration-200">
             <IoClose size={20} className="transform hover:scale-110 transition-transform duration-200"  />
           </button>
         </div>
