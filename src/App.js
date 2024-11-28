@@ -31,6 +31,19 @@ import SubGroupCreation from './Pages/Accounts/SubGroupCreation';
 import VerifyGroups from './Pages/Accounts/VerifyGroups';
 import CCBudgetVerification from './Components/CCBudgetVerification';
 import VerifyDcaBudget from './Pages/VerifyDcaBudget';
+import BankCreation from './Pages/Accounts/BankCreation';
+import VerifyBankAccount from './Pages/Accounts/VerifyBankAccount';
+import LoanCreation from './Pages/Accounts/LoanCreation';
+import VerifyLoan from './Pages/Accounts/VerifyLoan';
+import FixedDepositCreation from './Pages/Accounts/FixedDepositCreation';
+import VerifyFixedDeposit from './Pages/Accounts/VerifyFixedDeposit';
+import TdsAccountCreation from './Pages/TaxModule/TdsAccountCreation';
+import VerifyTdsAccount from './Pages/TaxModule/VerifyTdsAccount';
+import BusinessOpportunityCreation from './Pages/Projects/BusinessOpportunityCreation';
+import VerifyBusinessOppertunity from './Pages/Projects/VerifyBusinessOppertunity';
+import BOQDraft from './Pages/Projects/BOQDraft';
+import VerifyBOQ from './Pages/Projects/VerifyBOQ';
+import BOQRevisionPage from './Pages/Projects/BOQRevisionPage';
 
 function App() {
 
@@ -82,6 +95,20 @@ function App() {
           <Route path='/creategroups' element ={ isLoggedIn ? (<SubGroupCreation checkContent={false} />):<Navigate to="/"/>} />
           <Route path='/verify-group' element ={ isLoggedIn ? (<VerifyGroups/>):<Navigate to="/"/>} />
           <Route path='/verifyccbudget/:budgetType' element ={ isLoggedIn ? (<CCBudgetVerification/>):<Navigate to="/"/>} />
+          <Route path='/createnewbankaccount' element ={ isLoggedIn ? (<BankCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-new-bankaccount' element ={ isLoggedIn ? (<VerifyBankAccount/>):<Navigate to="/"/>} />
+          <Route path='/create-new-loanaccount' element ={ isLoggedIn ? (<LoanCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-new-loanaccount' element ={ isLoggedIn ? (<VerifyLoan/>):<Navigate to="/"/>} />
+          <Route path='/create-fixed-deposit' element ={ isLoggedIn ? (<FixedDepositCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-fixed-deposit' element ={ isLoggedIn ? (<VerifyFixedDeposit/>):<Navigate to="/"/>} />
+          <Route path='/create-tds-account' element ={ isLoggedIn ? (<TdsAccountCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-tds-account' element ={ isLoggedIn ? (<VerifyTdsAccount/>):<Navigate to="/"/>} />
+          <Route path='/create-businessoppertunity' element ={ isLoggedIn ? (<BusinessOpportunityCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-businessoppertunity' element ={ isLoggedIn ? (<VerifyBusinessOppertunity/>):<Navigate to="/"/>} />
+          <Route path='/create-bid' element ={ isLoggedIn ? (<BOQDraft/>):<Navigate to="/"/>} />
+          <Route path='/verify-bid' element ={ isLoggedIn ? (<VerifyBOQ/>):<Navigate to="/"/>} />
+          <Route path='/boqrevision' element ={ isLoggedIn ? (<BOQRevisionPage/>):<Navigate to="/"/>} />
+        
         
         </Routes>
         

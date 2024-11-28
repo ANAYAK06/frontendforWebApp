@@ -13,7 +13,12 @@ import reportSlices from "../Slices/reportsSlices";
 import ledgerSlice from "../Slices/ledgerSlices";
 import groupSlice from "../Slices/groupSlices";
 import dashboardSlice from "../Slices/dashboardSlices"
-
+import bankAccountSlice from "../Slices/bankAccountSlices"
+import loanAccountSlice from "../Slices/loanAccountSlices"
+import fixedDepositSlice from "../Slices/fixedDepositSlices"
+import tdsAccountSlice from "../Slices/tdsAccountSlices"
+import businessOppertunitySlice from "../Slices/businessOppertunitySlices"
+import clientBoq from  "../Slices/clientBoqSlices"
 
 
 
@@ -32,7 +37,13 @@ const  store = configureStore({
         reports: reportSlices,
         ledger: ledgerSlice,
         group: groupSlice,
-        dashboardPreference:dashboardSlice
+        dashboardPreference:dashboardSlice,
+        bankAccount:bankAccountSlice,
+        loan:loanAccountSlice,
+        fixedDeposit:fixedDepositSlice,
+        tds:tdsAccountSlice,
+        businessOpportunity:businessOppertunitySlice,
+        boq:clientBoq
 
 
 

@@ -5,6 +5,12 @@ import VerifyLedger from './Accounts/VerifyLedger';
 import VerifyGroups from './Accounts/VerifyGroups';
 import CCBudgetVerification from '../Components/CCBudgetVerification';
 import VerifyDcaBudget from './VerifyDcaBudget';
+import VerifyBankAccount from './Accounts/VerifyBankAccount';
+import VerifyLoan from './Accounts/VerifyLoan';
+import VerifyFixedDeposit from './Accounts/VerifyFixedDeposit';
+import VerifyTdsAccount from './TaxModule/VerifyTdsAccount';
+import VerifyBusinessOppertunity from './Projects/VerifyBusinessOppertunity';
+import VerifyBOQ from './Projects/VerifyBOQ';
 
 // Base components - these work independently of CCID
 const baseComponents = [
@@ -19,6 +25,30 @@ const baseComponents = [
   { 
     Component: VerifyGroups, 
     key: 'groupVerification',
+  },
+  { 
+    Component: VerifyBankAccount, 
+    key: 'bankVerification',
+  },
+  { 
+    Component: VerifyLoan, 
+    key: 'loanVerification',
+  },
+  { 
+    Component: VerifyFixedDeposit, 
+    key: 'fdVerification',
+  },
+  { 
+    Component: VerifyTdsAccount, 
+    key: 'tdsVerification',
+  },
+  { 
+    Component:VerifyBusinessOppertunity, 
+    key: 'oppertunityverification',
+  },
+  { 
+    Component:VerifyBOQ, 
+    key: 'boqverification',
   }
 ];
 
@@ -34,7 +64,7 @@ const budgetComponents = {
     },
     { 
       Component: VerifyDcaBudget, 
-      key: 'pccdcabudget',
+      key: 'performingDCABudget',
       props: { 
         budgetType: 'performing',
       }
@@ -50,7 +80,7 @@ const budgetComponents = {
     },
     { 
       Component: VerifyDcaBudget, 
-      key: 'npccdcabudget',
+      key: 'nonperformingDCABudget',
       props: { 
         budgetType: 'nonperforming',
       }
@@ -60,6 +90,13 @@ const budgetComponents = {
     {
       Component: CCBudgetVerification,
       key: 'capitalCCBudget',
+      props: { 
+        budgetType: 'capital',
+      }
+    },
+    { 
+      Component: VerifyDcaBudget, 
+      key: 'capitalDCABudget',
       props: { 
         budgetType: 'capital',
       }
@@ -82,13 +119,19 @@ function Inbox() {
 
   // Handle CCID Found - Only affects budget components
   const handleCCIDFound = useCallback((ccid) => {
+    console.log('CCID Found:', {
+      ccid,
+      typeFromCCID: CCID_TYPE_MAP[ccid],
+      currentActiveBudgetType: activeBudgetType
+    });
+
     const typeFromCCID = CCID_TYPE_MAP[ccid];
     
     if (!typeFromCCID || typeFromCCID === activeBudgetType) return;
 
     setActiveBudgetType(typeFromCCID);
     
-    // Update only budget components based on CCID
+    // Update budget components based on CCID
     const newBudgetComponents = (budgetComponents[typeFromCCID] || []).map(comp => ({
       ...comp,
       key: `${comp.key}-${ccid}`,
@@ -96,20 +139,31 @@ function Inbox() {
         ...comp.props,
         onCCIDFound: handleCCIDFound,
         ccid: ccid,
-        budgetType:typeFromCCID,
-        isInbox:true
-        
+        budgetType: typeFromCCID,
+        isInbox: true
       }
     }));
 
+    
     setBudgetComponentsToRender(newBudgetComponents);
   }, [activeBudgetType]);
 
   // Handle component state changes
   const handleComponentState = useCallback((key, isLoading, hasContent) => {
+    console.log('Component state change:', {
+      key,
+      isLoading,
+      hasContent
+    });
+    
     setComponentStates(prev => {
       const newState = { ...prev[key], isLoading, hasContent };
       if (JSON.stringify(prev[key]) !== JSON.stringify(newState)) {
+        console.log('Updating component state:', {
+          key,
+          prevState: prev[key],
+          newState
+        });
         return { ...prev, [key]: newState };
       }
       return prev;
@@ -118,8 +172,10 @@ function Inbox() {
 
   // Handle component removal
   const handleRemoveComponent = useCallback((keyToRemove) => {
+    console.log('Removing component:', keyToRemove);
+    
     // Check if it's a budget component
-    if (keyToRemove.includes('CCBudget') || keyToRemove.includes('dcabudget')) {
+    if (keyToRemove.includes('CCBudget') || keyToRemove.includes('DCABudget')) {
       setBudgetComponentsToRender(prev => 
         prev.filter(item => item.key !== keyToRemove)
       );
@@ -139,28 +195,46 @@ function Inbox() {
 
   // Initialize components
   useEffect(() => {
-    // Initialize base components - these remain constant
+    console.log('Initializing components...');
+    
+    // Initialize base components
     const initialBaseComponents = baseComponents.map(comp => ({
       ...comp,
       key: `${comp.key}-${Date.now()}`,
     }));
 
-    // Initialize with default budget component
-    const initialBudgetComponent = [{
-      Component: CCBudgetVerification,
-      key: `initialCCBudget-${Date.now()}`,
-      props: {
-        budgetType: 'nonperforming',
-        onCCIDFound: handleCCIDFound,
-        isInbox:true
+    // Initialize with both CC and DCA budget components
+    const initialBudgetComponents = [
+      {
+        Component: CCBudgetVerification,
+        key: `initialCCBudget-${Date.now()}`,
+        props: {
+          budgetType: 'nonperforming',
+          onCCIDFound: handleCCIDFound,
+          isInbox: true
+        }
+      },
+      {
+        Component: VerifyDcaBudget,
+        key: `initialDCABudget-${Date.now()}`,
+        props: {
+          budgetType: 'nonperforming',
+          onCCIDFound: handleCCIDFound,
+          isInbox: true
+        }
       }
-    }];
+    ];
+
+    console.log('Setting initial components:', {
+      baseComponents: initialBaseComponents,
+      budgetComponents: initialBudgetComponents
+    });
 
     setBaseComponentsToRender(initialBaseComponents);
-    setBudgetComponentsToRender(initialBudgetComponent);
+    setBudgetComponentsToRender(initialBudgetComponents);
     
     // Initialize states for all components
-    const initialStates = [...initialBaseComponents, ...initialBudgetComponent]
+    const initialStates = [...initialBaseComponents, ...initialBudgetComponents]
       .reduce((acc, { key }) => {
         acc[key] = { isLoading: true, hasContent: false };
         return acc;
@@ -187,6 +261,14 @@ function Inbox() {
     Object.values(componentStates).some(state => state?.isLoading),
     [componentStates]
   );
+
+  useEffect(() => {
+    console.log('Current state:', {
+      componentStates,
+      budgetComponentsToRender,
+      activeBudgetType
+    });
+  }, [componentStates, budgetComponentsToRender, activeBudgetType]);
 
   if (isLoading) {
     return (

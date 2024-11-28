@@ -114,13 +114,7 @@ function CCBudgetVerification({
         };
     }, [userRoleId, effectiveBudgetType, fetchCCBudgets, dispatch, isInbox]);
 
-    // Handle budget type changes
-    useEffect(() => {
-        if (firstLoadRef.current && effectiveBudgetType) {
-            dataFetchedRef.current = false;
-            fetchCCBudgets();
-        }
-    }, [effectiveBudgetType, fetchCCBudgets]);
+  
 
     // State change notification
     useEffect(() => {

@@ -75,10 +75,13 @@ export const fetchBudgetForCCAndFiscalYear = async (ccNo, fiscalYear) => {
 export const getDCABudgetForVerification = async (userRoleId, ccidFilter) => {
     try {
         const response = await axios.get(`${API_BASE_URL}/getdcabudget-for-verification`, {
+
+            headers:getAuthHeader(),
+
             params:{userRoleId,
-                ccidFilter
+                    ccidFilter
             },
-            headers:getAuthHeader()
+            
         })
         return response.data
     } catch (error) {
@@ -87,10 +90,10 @@ export const getDCABudgetForVerification = async (userRoleId, ccidFilter) => {
     }
 }   
 
-export const updateDCABudget = async(ccNo, remarks) => {
+export const updateDCABudget = async(referenceNumber, remarks) => {
     try {
         const response = await axios.put(`${API_BASE_URL}/update-dca-budget`,
-            {ccNo, remarks},
+            {referenceNumber, remarks},
             {headers:getAuthHeader()}
 
         )
@@ -101,10 +104,10 @@ export const updateDCABudget = async(ccNo, remarks) => {
     }
 }
 
-export const rejectDCABudget = async ( ccNo, remarks) => {
+export const rejectDCABudget = async ( referenceNumber, remarks) => {
     try {
         const response = await axios.put(`${API_BASE_URL}/reject-dca-budget`,
-            {ccNo, remarks},
+            {referenceNumber, remarks},
             {headers: getAuthHeader()}
         )
         return response.data

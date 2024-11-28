@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchCostCentreTypes } from '../Slices/costCentreTypeSlices';
-import { fetchEligibleCCs, fetchDCAForCC, resetAssignmentSuccess, assignDCABudget, fetchFiscalYearsForCC, fetchBudgetForCCAndFiscalYear } from '../Slices/dcaBudgetSlices';
+import { fetchEligibleCCs, fetchDCAForCC, resetAssignmentSuccess, assignDCABudget, fetchFiscalYearsForCC, fetchBudgetForCCAndFiscalYear, setReferenceNumber } from '../Slices/dcaBudgetSlices';
 import { showToast } from '../utilities/toastUtilities';
 
 function AssignDCABudget() {
@@ -21,18 +21,8 @@ function AssignDCABudget() {
         applyFiscalYear: false
     });
     const [remainingBalance, setRemainingBalance] = useState(0);
-    const [lastToggledDCA, setLastToggledDCA] = useState(null);
 
 
-    useEffect(() => {
-        if (lastToggledDCA) {
-            const dca = formData.dcaAllocations.find(dca => dca.dcaCode === lastToggledDCA)
-            if (dca) {
-                showToast('info', `Auto allocation ${dca.autoAllocate ? 'enabled' : 'disabled'} for ${dca.dcaName}`)
-            }
-        }
-        setLastToggledDCA(null)
-    }, [formData.dcaAllocations, lastToggledDCA])
 
     useEffect(() => {
         if (!costCentreTypes.length) {
@@ -138,11 +128,11 @@ function AssignDCABudget() {
 
 
     useEffect(() => {
-        if(selectedBudget){
+        if (selectedBudget) {
             setFormData(prev => ({
                 ...prev,
-                approvedBudget:selectedBudget.ccBudget,
-                balanceBudget:selectedBudget.balanceBudget
+                approvedBudget: selectedBudget.ccBudget,
+                balanceBudget: selectedBudget.balanceBudget
             }))
         }
     }, [selectedBudget])
@@ -177,46 +167,6 @@ function AssignDCABudget() {
         });
     }, []);
 
-    const handleSubDCAAllocation = useCallback((dcaCode, subDcaCode, amount) => {
-        setFormData(prev => {
-            const updatedAllocations = prev.dcaAllocations.map(dca => {
-                if (dca.dcaCode === dcaCode) {
-                    const updatedSubDcas = dca.subDcas.map(subDca => {
-                        if (subDca.subDcaCode === subDcaCode) {
-                            return { ...subDca, amount: parseFloat(amount) || 0 };
-                        }
-                        return subDca;
-                    });
-                    return { ...dca, subDcas: updatedSubDcas };
-                }
-                return dca;
-            });
-            return { ...prev, dcaAllocations: updatedAllocations };
-        });
-    }, []);
-
-    const handleAutoAllocateToggle = useCallback((dcaCode) => {
-        setFormData(prev => {
-            const updatedAllocations = prev.dcaAllocations.map(dca => {
-                if (dca.dcaCode === dcaCode) {
-                    const autoAllocate = !dca.autoAllocate;
-                    let updatedSubDcas = dca.subDcas;
-                    if (autoAllocate) {
-                        const equalAmount = dca.assignedAmount / dca.subDcas.length;
-                        updatedSubDcas = dca.subDcas.map(subDca => ({
-                            ...subDca,
-                            amount: equalAmount
-                        }));
-
-                    }
-                    return { ...dca, autoAllocate, subDcas: updatedSubDcas };
-                }
-                return dca;
-            });
-            setLastToggledDCA(dcaCode)
-            return { ...prev, dcaAllocations: updatedAllocations };
-        });
-    }, []);
 
     useEffect(() => {
         if (dcaList.length > 0) {
@@ -242,21 +192,22 @@ function AssignDCABudget() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-
+    
         if (remainingBalance < 0) {
             showToast('error', 'Total allocation exceeds available budget')
             return
         }
-
+    
         if (!formData.ccid || !formData.subId || !formData.ccNo || !formData.remarks) {
-            showToast('error', 'Please fill all required fileds')
+            showToast('error', 'Please fill all required fields')
             return
         }
+    
         if (formData.dcaAllocations.every(dca => dca.assignedAmount === 0)) {
             showToast('error', 'Please allocate budget to at least one DCA')
             return
         }
-
+    
         const filteredDCAAllocations = formData.dcaAllocations
             .filter(dca => dca.assignedAmount > 0)
             .map(dca => ({
@@ -268,36 +219,50 @@ function AssignDCABudget() {
                         amount: subDca.amount
                     }))
             }))
-
-        if (filteredDCAAllocations.length === 0) {
-            showToast('error', 'Please allocate budget to at least one DCA')
-            return
-        }
-
+    
         const submitData = {
             ccid: parseInt(formData.ccid),
             subId: parseInt(formData.subId),
             ccNo: formData.ccNo,
             dcaAllocations: filteredDCAAllocations,
             remarks: formData.remarks
-
         }
-
-        if(formData.applyFiscalYear && formData.fiscalYear !== 'N/A'){
+    
+        if (formData.applyFiscalYear && formData.fiscalYear !== 'N/A') {
             submitData.fiscalYear = formData.fiscalYear
         }
-
-
+    
         dispatch(assignDCABudget(submitData))
             .unwrap()
-            .then(() => {
-
+            .then((response) => {
+                // Store reference number from response if needed
+                if (response.referenceNumber) {
+                    dispatch(setReferenceNumber(response.referenceNumber));
+                }
             })
             .catch((err) => {
                 showToast('error', `Failed to Assign DCA Budget: ${err.message}`)
-            })
-        console.log('Submitting DCA Budget:', formData);
+            });
+    };
+    const handleReset = () => {
+        // Reset form to initial state
+        setFormData({
+            ccid: '',
+            subId: '',
+            ccNo: '',
+            fiscalYear: '',
+            approvedBudget: 0,
+            balanceBudget: 0,
+            dcaAllocations: [],
+            remarks: '',
+            applyFiscalYear: false
+        });
 
+        // Reset remaining balance
+        setRemainingBalance(0);
+
+        // Show toast notification
+        showToast('info', 'Form has been reset');
     };
 
     if (loading) {
@@ -315,26 +280,26 @@ function AssignDCABudget() {
                     <strong className="font-bold">Error!</strong>
                     <span className="block sm:inline"> {error.message}</span>
                 </div>
-            )
+            )}
 
-            }
             <form onSubmit={handleSubmit} className="space-y-6">
-                <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label htmlFor="ccid" className='block text-sm font-medium text-gray-700'>Cost Centre Type</label>
-                        <select name="ccid" id="ccid"
+                        <label htmlFor="ccid" className="block text-sm font-medium text-gray-700">Cost Centre Type</label>
+                        <select
+                            name="ccid"
+                            id="ccid"
                             value={formData.ccid}
                             onChange={handleInputChange}
-                            className='mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm'
+                            className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                         >
                             <option value="">Select Cost Centre Type</option>
-                            {
-                                costCentreTypes.map((cc) => (
-                                    <option key={cc.value} value={cc.value}>{cc.label}</option>
-                                ))
-                            }
+                            {costCentreTypes.map((cc) => (
+                                <option key={cc.value} value={cc.value}>{cc.label}</option>
+                            ))}
                         </select>
                     </div>
+
                     {formData.ccid && (
                         <div>
                             <label htmlFor="subId" className="block text-sm font-medium text-gray-700">Sub Type</label>
@@ -352,13 +317,10 @@ function AssignDCABudget() {
                             </select>
                         </div>
                     )}
+
                     {formData.subId && (
                         <div>
                             <label htmlFor="ccNo" className="block text-sm font-medium text-gray-700">CC Code</label>
-
-
-
-
                             <select
                                 id="ccNo"
                                 name="ccNo"
@@ -374,149 +336,139 @@ function AssignDCABudget() {
                                     <option key={cc.ccNo} value={cc.ccNo}>{cc.ccNo}</option>
                                 ))}
                             </select>
-
-
                         </div>
                     )}
-
-
-
                 </div>
+
                 {formData.ccNo && (
                     <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
                         <h2 className="text-xl font-semibold mb-4 text-gray-800">Budget Information</h2>
                         <div className="grid grid-cols-3 gap-4 text-center">
                             <div className="bg-blue-100 p-4 rounded-md">
                                 <p className="text-sm font-medium text-gray-600">Approved Budget</p>
-                                <p className="text-2xl font-bold text-blue-700">{formData.approvedBudget.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}</p>
+                                <p className="text-2xl font-bold text-blue-700">
+                                    {formData.approvedBudget.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}
+                                </p>
                             </div>
                             <div className="bg-green-100 p-4 rounded-md">
                                 <p className="text-sm font-medium text-gray-600">Balance Budget</p>
-                                <p className="text-2xl font-bold text-green-700">{formData.balanceBudget.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}</p>
+                                <p className="text-2xl font-bold text-green-700">
+                                    {formData.balanceBudget.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}
+                                </p>
                             </div>
                             <div className="bg-yellow-100 p-4 rounded-md">
                                 <p className="text-sm font-medium text-gray-600">Remaining Balance</p>
-                                <p className="text-2xl font-bold text-yellow-700">{remainingBalance.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}</p>
+                                <p className="text-2xl font-bold text-yellow-700">
+                                    {remainingBalance.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}
+                                </p>
                             </div>
                         </div>
                     </div>
                 )}
-                {
-                    formData.ccNo && formData.applyFiscalYear && (
-                        <div>
-                            <label htmlFor="fiscalYear" className="block text-sm font-medium text-gray-700">Fiscal Year</label>
-                            <select
-                                id="fiscalYear"
-                                name="fiscalYear"
-                                value={formData.fiscalYear}
-                                onChange={(e) => handleFiscalYearSelect(e.target.value)}
-                                className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            >
-                                <option value="">Select Fiscal Year</option>
-                                {fiscalYears.map((year) => (
-                                    <option key={year} value={year}>{year}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )
-                }
 
-
+                {formData.ccNo && formData.applyFiscalYear && (
+                    <div>
+                        <label htmlFor="fiscalYear" className="block text-sm font-medium text-gray-700">Fiscal Year</label>
+                        <select
+                            id="fiscalYear"
+                            name="fiscalYear"
+                            value={formData.fiscalYear}
+                            onChange={(e) => handleFiscalYearSelect(e.target.value)}
+                            className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        >
+                            <option value="">Select Fiscal Year</option>
+                            {fiscalYears.map((year) => (
+                                <option key={year} value={year}>{year}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
 
                 {formData.dcaAllocations.length > 0 && (
                     <div className="mt-6">
-                        <h2 className="text-2xl font-semibold mb-4 text-gray-800">DCA Allocations</h2>
-                        {formData.dcaAllocations.map((dca) => (
-                            <div key={dca.dcaCode} className="mb-6 bg-white p-6 rounded-lg shadow-md">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-medium text-indigo-600">{dca.dcaCode} - {dca.dcaName}</h3>
-                                    <div className="flex items-center">
-                                        <span className="mr-2 text-sm text-gray-600">Auto-allocate to Sub-DCAs</span>
-                                        <label className="inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className='hidden'
-                                                checked={dca.autoAllocate}
-                                                onChange={() => handleAutoAllocateToggle(dca.dcaCode)}
-                                            />
-                                            <div className={`w-10 h-5 rounded-full transition-colors duration-200 ease-in-out ${dca.autoAllocate ? 'bg-indigo-600' : 'bg-gray-300'}`}>
-                                                <div className={`w-4 h-4 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${dca.autoAllocate ? 'translate-x-5' : 'translate-x-1'}`}></div>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-4 gap-4 mb-4">
-                                    <div className=' col-span-1'>
-                                        <label htmlFor={`percentage-${dca.dcaCode}`} className="block text-sm font-medium text-gray-700">Percentage</label>
-                                        <input
-                                            type="number"
-                                            id={`percentage-${dca.dcaCode}`}
-                                            name={`percentage-${dca.dcaCode}`}
-                                            value={dca.percentage || ''}
-                                            onChange={(e) => handleDCAAllocation(dca.dcaCode, e.target.value, 'percentage')}
-                                            className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-right"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label htmlFor={`amount-${dca.dcaCode}`} className="block text-sm font-medium text-gray-700">Amount</label>
-                                        <input
-                                            type="number"
-                                            id={`amount-${dca.dcaCode}`}
-                                            name={`amount-${dca.dcaCode}`}
-                                            value={dca.assignedAmount || ''}
-                                            onChange={(e) => handleDCAAllocation(dca.dcaCode, e.target.value, 'amount')}
-                                            className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-right"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="mt-4">
-                                    <h4 className="text-sm font-medium mb-2 text-gray-700">Sub-DCAs</h4>
-                                    <div className='grid grid-cols-3 gap-4'>
-                                        {dca.subDcas.map((subDca) => (
-                                            <div key={subDca.subDcaCode} className=" bg-gray-50 p-3 rounded-md">
-                                                <div className="">
-                                                    <p className="text-sm font-medium text-gray-700 mb-1">{subDca.subDcaCode} - {subDca.subdcaName}</p>
-                                                </div>
-                                                <div>
-                                                    <input
-                                                        type="number"
-                                                        value={subDca.amount || ''}
-                                                        onChange={(e) => handleSubDCAAllocation(dca.dcaCode, subDca.subDcaCode, e.target.value)}
-                                                        disabled={dca.autoAllocate}
-                                                        className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-right"
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
+                        <h2 className="text-xl font-semibold mb-4">DCA Allocations</h2>
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                            {/* Header */}
+                            <div className="grid grid-cols-4 gap-4 bg-gray-50 p-4 border-b border-gray-200">
+                                <div className="text-sm font-medium text-gray-700">DCA Code</div>
+                                <div className="text-sm font-medium text-gray-700">DCA Name</div>
+                                <div className="text-sm font-medium text-gray-700 text-right">Percentage (%)</div>
+                                <div className="text-sm font-medium text-gray-700 text-right">Amount (₹)</div>
+                            </div>
 
+                            {/* DCA Rows */}
+                            <div className="divide-y divide-gray-200">
+                                {formData.dcaAllocations.map((dca) => (
+                                    <div key={dca.dcaCode} className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-gray-50 transition-colors">
+                                        <div className="font-medium text-indigo-600">{dca.dcaCode}</div>
+                                        <div className="text-gray-900">{dca.dcaName}</div>
+                                        <div>
+                                            <input
+                                                type="number"
+                                                id={`percentage-${dca.dcaCode}`}
+                                                value={dca.percentage || ''}
+                                                onChange={(e) => handleDCAAllocation(dca.dcaCode, e.target.value, 'percentage')}
+                                                className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-right"
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                        <div>
+                                            <input
+                                                type="number"
+                                                id={`amount-${dca.dcaCode}`}
+                                                value={dca.assignedAmount || ''}
+                                                onChange={(e) => handleDCAAllocation(dca.dcaCode, e.target.value, 'amount')}
+                                                className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-right"
+                                                placeholder="0.00"
+                                            />
+                                        </div>
                                     </div>
+                                ))}
+                            </div>
+
+                            {/* Summary Footer */}
+                            <div className="grid grid-cols-4 gap-4 bg-gray-50 p-4 border-t border-gray-200">
+                                <div className="col-span-2 text-sm font-medium text-gray-700">Total Allocation</div>
+                                <div className="text-sm font-medium text-gray-700 text-right">
+                                    {((formData.balanceBudget - remainingBalance) / formData.approvedBudget * 100).toFixed(2)}%
+                                </div>
+                                <div className="text-sm font-medium text-gray-700 text-right">
+                                    ₹{(formData.balanceBudget - remainingBalance).toLocaleString('en-IN')}
                                 </div>
                             </div>
-                        ))}
+                        </div>
                     </div>
                 )}
-                <div className='mt-8 col-span-2'>
-                    <label htmlFor="remarks" className='block text-sm font-medium text-gray-700 mb-2'>Remarks</label>
-                    <textarea name="remarks" id="remarks"
-                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+
+                <div className="mt-6">
+                    <label htmlFor="remarks" className="block text-sm font-medium text-gray-700">Remarks</label>
+                    <textarea
+                        id="remarks"
+                        name="remarks"
+                        rows="3"
                         value={formData.remarks}
                         onChange={handleInputChange}
-                        rows='3'
                         required
-
-
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     ></textarea>
-
-
                 </div>
 
-                <div className="mt-8 ">
+
+                <div className="flex justify-end space-x-4">
+
                     <button
                         type="submit"
-                        className="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out"
                         disabled={loading}
+                        className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                        {loading ? 'Assigning....' : 'Assign DCA Budget'}
+                        {loading ? 'Creating...' : 'Assign DCA Budget'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleReset}
+                        className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                        Reset
                     </button>
                 </div>
             </form>

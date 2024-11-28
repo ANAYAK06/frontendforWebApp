@@ -16,6 +16,7 @@ import { MdLibraryBooks } from "react-icons/md";
 import { Link } from 'react-router-dom'
 import { GrAnalytics } from "react-icons/gr";
 import { FaBook } from "react-icons/fa";
+import { PiGavelFill } from "react-icons/pi";
 
 function Sidenav() {
     const dispatch = useDispatch()
@@ -48,7 +49,8 @@ function Sidenav() {
         "IoConstruct":<IoConstruct />,
         "MdLibraryBooks":<MdLibraryBooks />,
         "GrAnalytics":<GrAnalytics />,
-        "FaBook":<FaBook />
+        "FaBook":<FaBook />,
+        "PiGavelFill":<PiGavelFill />
     }
 
 

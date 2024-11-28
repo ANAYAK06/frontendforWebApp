@@ -71,14 +71,24 @@ export const fetchDCABudgetForVerification = createAsyncThunk(
     'dcaBudget/fetchDCABudgetForVerification',
     async(payload, {rejectWithValue}) => {
        try {
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('No authentication token found');
+        }
        
-        const dcaBudgets = await getDCABudgetForVerificationAPI(payload.userRoleId)
+        const response = await getDCABudgetForVerificationAPI(
+            payload.userRoleId, token
+        
+        )
+
+        console.log('API Response:', response);
 
          
-        return dcaBudgets
+        return response
        
        } catch (error) {
-        return rejectWithValue(error)
+        return rejectWithValue(error.message || 'Failed to fetch dac budget')
         
        }
     }
@@ -86,9 +96,9 @@ export const fetchDCABudgetForVerification = createAsyncThunk(
 )
 export const updateDCABudget = createAsyncThunk(
     'dcaBudget/updateDCABudget',
-    async({ccNo, remarks}, {rejectWithValue}) => {
+    async({referenceNumber, remarks}, {rejectWithValue}) => {
         try {
-            const response = await updateDCABudgetAPI(ccNo, remarks);
+            const response = await updateDCABudgetAPI(referenceNumber, remarks);
             return response
         } catch (error) {
             return rejectWithValue(error)
@@ -99,9 +109,9 @@ export const updateDCABudget = createAsyncThunk(
 
 export const rejectDCABudget = createAsyncThunk(
     'dcaBudget/rejectDCABudget',
-    async({ccNo, remarks}, {rejectWithValue}) => {
+    async({referenceNumber, remarks}, {rejectWithValue}) => {
         try {
-            const response = await rejectDCABudgetAPI(ccNo, remarks)
+            const response = await rejectDCABudgetAPI(referenceNumber, remarks)
             return response
         } catch (error) {
             return rejectWithValue(error)
@@ -121,7 +131,9 @@ export const rejectDCABudget = createAsyncThunk(
         error:null,
         assignmentSuccess:false,
         updateSuccess:false,
-        rejectSuccess:false
+        rejectSuccess:false,
+        referenceNumber:null,
+        initialLoadComplete: false, // New state to track initial load
     },
     reducers:{
         resetRejectSuccess: (state) => {
@@ -133,6 +145,20 @@ export const rejectDCABudget = createAsyncThunk(
         resetUpdateSuccess: (state) => {
             state.updateSuccess = false
         },
+        setReferenceNumber: (state, action) => {
+            state.referenceNumber = action.payload;
+        },
+        clearReferenceNumber: (state) => {
+            state.referenceNumber = null;
+        },
+        resetState: (state) => {
+            state.dcaBudgetForVerification = [];
+            state.loading = false;
+            state.error = null;
+            state.updateSuccess = false;
+            state.rejectSuccess = false;
+            state.initialLoadComplete = false;
+        }
        
     },
     extraReducers:(builder) => {
@@ -167,9 +193,10 @@ export const rejectDCABudget = createAsyncThunk(
             state.error = null;
             state.assignmentSuccess = false;
         })
-        .addCase(assignDCABudget.fulfilled, (state) => {
+        .addCase(assignDCABudget.fulfilled, (state, action) => {
             state.loading = false;
             state.assignmentSuccess = true
+            state.referenceNumber = action.payload.referenceNumber
         })
         .addCase(assignDCABudget.rejected, (state, action) => {
             state.loading = false;
@@ -195,6 +222,7 @@ export const rejectDCABudget = createAsyncThunk(
         .addCase(fetchBudgetForCCAndFiscalYear.fulfilled, (state, action) => {
             state.loading = false;
             state.selectedBudget = action.payload;
+            
         })
         .addCase(fetchBudgetForCCAndFiscalYear.rejected, (state, action) => {
             state.loading = false;
@@ -207,10 +235,17 @@ export const rejectDCABudget = createAsyncThunk(
         .addCase(fetchDCABudgetForVerification.fulfilled, (state, action) => {
             state.loading = false;
             
+            state.dcaBudgetForVerification = action.payload.dcaBudgets.map(budget =>({
+                ...budget,
+                referenceNumber:budget.referenceNumber,
+                
+            }))
+            state.initialLoadComplete = true;
         })
         .addCase(fetchDCABudgetForVerification.rejected, (state, action) => {
             state.loading = false;
             state.error = action.payload
+            state.initialLoadComplete = true;
         })
         .addCase(updateDCABudget.pending, (state) => {
             state.loading = true;
@@ -243,6 +278,6 @@ export const rejectDCABudget = createAsyncThunk(
     }
  })
 
- export const {resetAssignmentSuccess, resetUpdateSuccess, resetRejectSuccess} = dcaBudgetSlice.actions
+ export const {resetAssignmentSuccess, resetUpdateSuccess, resetRejectSuccess, setReferenceNumber, clearReferenceNumber, resetState} = dcaBudgetSlice.actions
 
  export default dcaBudgetSlice.reducer

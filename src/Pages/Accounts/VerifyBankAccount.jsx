@@ -1,11 +1,17 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { FaChevronDown } from "react-icons/fa6";
 import { FaRegEdit, FaTimes } from "react-icons/fa";
 import { useDispatch, useSelector } from 'react-redux';
 import SignatureAndRemarks from '../../Components/SignatureAndRemarks';
-import { fetchVerificationLedgers, updateLedger, rejectGeneralLedger,  resetRejectSuccess, resetUpdateSuccess } from '../../Slices/ledgerSlices'
+import { 
+    fetchVerificationBankAccounts, 
+    updateBankAccount, 
+    rejectBankAccountThunk,
+    resetRejectSuccess,
+    resetUpdateSuccess 
+} from '../../Slices/bankAccountSlices';
 import { showToast } from '../../utilities/toastUtilities';
-import { fetchAccountGroups } from '../../Slices/groupSlices'
+import { fetchAccountGroups } from '../../Slices/groupSlices';
 
 const defaultProps = {
     checkContent: true,
@@ -13,22 +19,18 @@ const defaultProps = {
     onStateChange: () => {}
 };
 
-function VerifyLedger(props) {
-
+function VerifyBankAccount(props) {
     const { checkContent, onEmpty, onStateChange } = { ...defaultProps, ...props };
     
     const dispatch = useDispatch();
-    const { ledgersForVerification, loading, error, updateSuccess, rejectSuccess } = useSelector(state => state.ledger);
-    const userRoleId = useSelector(state => state.auth.userInfo.roleId)
+    const { accountsForVerification, loading, error, updateSuccess, rejectSuccess } = useSelector(state => state.bankAccount);
+    const userRoleId = useSelector(state => state.auth.userInfo.roleId);
     const [inboxExpanded, setInboxExpanded] = useState(false);
-    const [selectedLedger, setSelectedLedger] = useState(null);
+    const [selectedAccount, setSelectedAccount] = useState(null);
     const [remarks, setRemarks] = useState('');
-    const {groups} = useSelector((state) => state.group)
+    const { groups } = useSelector((state) => state.group);
 
-
-    const hasContent = useMemo(() => ledgersForVerification.length > 0, [ledgersForVerification])
-
- 
+    const hasContent = useMemo(() => accountsForVerification.length > 0, [accountsForVerification]);
 
     const groupLookup = useMemo(() => {
         return groups.reduce((acc, group) => {
@@ -37,96 +39,87 @@ function VerifyLedger(props) {
         }, {});
     }, [groups]);
 
+    useEffect(() => {
+        dispatch(fetchAccountGroups());
+    }, [dispatch]);
 
-
-    useEffect(()=>{
-        dispatch(fetchAccountGroups())
-    }, [dispatch])
-
-  
-    
-    const closeLedgerDetails = useCallback(() => {
-        setSelectedLedger(null);
+    const closeAccountDetails = useCallback(() => {
+        setSelectedAccount(null);
         setRemarks('');
-    },[])
-    
+    }, []);
 
     useEffect(() => {
         if (userRoleId) {
-            dispatch(fetchVerificationLedgers( userRoleId ))
+            dispatch(fetchVerificationBankAccounts(userRoleId));
         }
-    }, [dispatch, userRoleId])
+    }, [dispatch, userRoleId]);
 
-    
     useEffect(() => {
         onStateChange(loading, hasContent);
     }, [loading, hasContent, onStateChange]);
 
     useEffect(() => {
         if (updateSuccess) {
-            showToast('success', 'Ledger verified successfully')
-            closeLedgerDetails()
-            dispatch(fetchVerificationLedgers( userRoleId ))
-            dispatch(resetUpdateSuccess())
-           
+            showToast('success', 'Bank account verified successfully');
+            closeAccountDetails();
+            dispatch(fetchVerificationBankAccounts(userRoleId));
+            dispatch(resetUpdateSuccess());
         }
         if (rejectSuccess) {
-            showToast('error', 'Ledger Rejected Successfully')
-            closeLedgerDetails()
-            dispatch(fetchVerificationLedgers( userRoleId ))
-            dispatch(resetRejectSuccess())
+            showToast('error', 'Bank Account Rejected Successfully');
+            closeAccountDetails();
+            dispatch(fetchVerificationBankAccounts(userRoleId));
+            dispatch(resetRejectSuccess());
         }
-    }, [updateSuccess, rejectSuccess, dispatch, userRoleId, closeLedgerDetails])
+    }, [updateSuccess, rejectSuccess, dispatch, userRoleId, closeAccountDetails]);
 
     const toggleInbox = () => setInboxExpanded(!inboxExpanded);
 
-    const openLedgerDetails = (ledger) => setSelectedLedger(ledger);
-
+    const openAccountDetails = (account) => setSelectedAccount(account);
 
     const handleVerify = useCallback(async () => {
         if (!remarks.trim()) {
-            showToast('error', 'Please enter remarks before verifying')
-            return
+            showToast('error', 'Please enter remarks before verifying');
+            return;
         }
-        if (!selectedLedger || !selectedLedger._id) {
-            showToast('error', 'No ledger selected or invalid ledger ID')
-            return
+        if (!selectedAccount || !selectedAccount._id) {
+            showToast('error', 'No bank account selected or invalid account ID');
+            return;
         }
         try {
-            
-            await dispatch(updateLedger({
-                id: selectedLedger._id,
-                updateData: {remarks:remarks}
-            })).unwrap()
-           
+            await dispatch(updateBankAccount({
+                id: selectedAccount._id,
+                updateData: { remarks: remarks }
+            })).unwrap();
         } catch (error) {
-            showToast('error', 'Failed to verify Ledger: ' + error.message)
+            showToast('error', 'Failed to verify bank account: ' + error.message);
         }
-    }, [dispatch, selectedLedger, remarks]);
+    }, [dispatch, selectedAccount, remarks]);
 
     const handleReject = useCallback(async () => {
         if (!remarks.trim()) {
-            showToast('error', 'Please enter remarks before rejecting')
-            return
+            showToast('error', 'Please enter remarks before rejecting');
+            return;
         }
         try {
-            await dispatch(rejectGeneralLedger({
-                id: selectedLedger._id,
+            await dispatch(rejectBankAccountThunk({
+                id: selectedAccount._id,
                 remarks: remarks
-            })).unwrap()
+            })).unwrap();
         } catch (error) {
-            showToast('error', 'Failed To Reject Ledger: ' + error.message)
+            showToast('error', 'Failed to reject bank account: ' + error.message);
         }
-    }, [dispatch, selectedLedger, remarks]);
+    }, [dispatch, selectedAccount, remarks]);
 
-    if (loading && !ledgersForVerification.length) return <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-indigo-500"></div>
-    </div>;
+    if (loading && !accountsForVerification.length) return (
+        <div className="flex justify-center items-center h-screen">
+            <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+    );
 
-     // Modify the error handling
-     if (error) return null;
+    if (error) return null;
 
-     if (!hasContent) return null;
+    if (!hasContent) return null;
 
     return (
         <div className='w-full bg-white shadow-md rounded-md overflow-hidden mb-4 mt-4'>
@@ -134,8 +127,8 @@ function VerifyLedger(props) {
                 <div className='px-2 py-2 rounded-full bg-slate-300 cursor-pointer' onClick={toggleInbox}>
                     <FaChevronDown className={`text-gray-600 font-bold ${inboxExpanded ? 'rotate-180 duration-300' : ''}`} />
                 </div>
-                <div><h3 className='text-gray-600 font-bold'>Ledger Verification</h3></div>
-                <div className='font-bold text-red-500'>({ledgersForVerification.length})</div>
+                <div><h3 className='text-gray-600 font-bold'>Bank Account Verification</h3></div>
+                <div className='font-bold text-red-500'>({accountsForVerification.length})</div>
             </div>
             
             <div className={`transition-max-height duration-500 ease-in-out overflow-hidden ${inboxExpanded ? 'max-h-screen' : 'max-h-0'}`}>
@@ -146,22 +139,34 @@ function VerifyLedger(props) {
                                 <thead className='text-gray-700'>
                                     <tr>
                                         <th className='border px-4 py-2'>Action</th>
-                                        <th className='border px-4 py-2'>Ledger Name</th>
+                                        <th className='border px-4 py-2'>Bank Name</th>
+                                        <th className='border px-4 py-2'>Account Number</th>
+                                        <th className='border px-4 py-2'>Account Type</th>
                                         <th className='border px-4 py-2'>Group</th>
                                         <th className='border px-4 py-2'>Opening Balance</th>
-                                        <th className='border px-4 py-2'>Balance Type</th>
                                     </tr>
                                 </thead>
                                 <tbody className='item-centre justify-center'>
-                                    {ledgersForVerification.map((ledger) => (
-                                        <tr key={ledger._id}>   
+                                    {accountsForVerification.map((account) => (
+                                        <tr key={account._id}>   
                                             <td className='border px-4 py-2'>
-                                                <FaRegEdit className='text-yellow-600 cursor-pointer text-2xl' onClick={() => openLedgerDetails(ledger)} />
+                                                <FaRegEdit 
+                                                    className='text-yellow-600 cursor-pointer text-2xl' 
+                                                    onClick={() => openAccountDetails(account)} 
+                                                />
                                             </td>
-                                            <td className='border px-4 py-2'>{ledger.ledgerName || 'N/A'}</td>
-                                            <td className='border px-4 py-2'>{groupLookup[ledger.groupId] || 'Unknown Group'}</td>
-                                            <td className='border px-4 py-2'>{typeof ledger.openingBalance === 'number' ? ledger.openingBalance.toLocaleString('en-US', { style: 'currency', currency: 'INR' }) : 'N/A'}</td>
-                                            <td className='border px-4 py-2'>{ledger.balanceType || 'N/A'}</td>
+                                            <td className='border px-4 py-2'>{account.bankName || 'N/A'}</td>
+                                            <td className='border px-4 py-2'>{account.accountNumber || 'N/A'}</td>
+                                            <td className='border px-4 py-2'>{account.accountType || 'N/A'}</td>
+                                            <td className='border px-4 py-2'>{groupLookup[account.accountingGroupId] || 'Unknown Group'}</td>
+                                            <td className='border px-4 py-2'>
+                                                {typeof account.openingBalance === 'number' 
+                                                    ? account.openingBalance.toLocaleString('en-US', { 
+                                                        style: 'currency', 
+                                                        currency: 'INR' 
+                                                    }) 
+                                                    : 'N/A'}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -171,35 +176,40 @@ function VerifyLedger(props) {
                 )}
             </div>
 
-            {selectedLedger && (
+            {selectedAccount && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
                     <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white fade-in">
                         <div className='absolute top-0 right-0 mt-4 mr-4'>
-                            <button onClick={closeLedgerDetails} className='text-gray-400 hover:text-gray-500'>
+                            <button onClick={closeAccountDetails} className='text-gray-400 hover:text-gray-500'>
                                 <FaTimes className="h-6 w-6" />
                             </button>
                         </div>
                         <div className="mt-3">
                             <div className='mt-8 bg-gray-200 text-gray-500 px-6 py-4'>
-                                <h3 className='text-2xl font-bold leading-tight'>Ledger Details</h3>
+                                <h3 className='text-2xl font-bold leading-tight'>Bank Account Details</h3>
                                 <p className='text-lg mt-1 font-medium text-indigo-800'>
-                                    <span className='font-bold'>Ledger Name:</span> {selectedLedger.ledgerName}
+                                    <span className='font-bold'>Bank Name:</span> {selectedAccount.bankName}
                                 </p>
                             </div>
 
                             <div className="mt-2 px-7 py-3">
                                 <div className='grid grid-cols-3 gap-4 mb-4'>
                                     <div className='bg-indigo-400 p-4 rounded-md'>
-                                        <p className='text-sm font-medium text-gray-600'>Group</p>
-                                        <p className='text-xl font-bold text-indigo-800'>{groupLookup[selectedLedger.groupId] || 'Unknown Group'}</p>
+                                        <p className='text-sm font-medium text-gray-600'>Account Number</p>
+                                        <p className='text-xl font-bold text-indigo-800'>{selectedAccount.accountNumber}</p>
                                     </div>
                                     <div className='bg-green-200 p-4 rounded-md'>
                                         <p className='text-sm font-medium text-gray-600'>Opening Balance</p>
-                                        <p className='text-xl font-bold text-green-700'>{selectedLedger.openingBalance.toLocaleString('en-US', { style: 'currency', currency: 'INR' })}</p>
+                                        <p className='text-xl font-bold text-green-700'>
+                                            {selectedAccount.openingBalance.toLocaleString('en-US', { 
+                                                style: 'currency', 
+                                                currency: 'INR' 
+                                            })}
+                                        </p>
                                     </div>
                                     <div className='bg-yellow-200 p-4 rounded-md'>
-                                        <p className='text-sm font-medium text-gray-600'>Balance Type</p>
-                                        <p className='text-xl font-bold text-yellow-700'>{selectedLedger.balanceType}</p>
+                                        <p className='text-sm font-medium text-gray-600'>Account Type</p>
+                                        <p className='text-xl font-bold text-yellow-700'>{selectedAccount.accountType}</p>
                                     </div>
                                 </div>
 
@@ -210,22 +220,35 @@ function VerifyLedger(props) {
                                     <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
                                         <dl className="sm:divide-y sm:divide-gray-200">
                                             <div className="py-3 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                                                <dt className="text-sm font-medium text-gray-500">TDS Applicable</dt>
-                                                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{selectedLedger.isTDSApplicable ? 'Yes' : 'No'}</dd>
+                                                <dt className="text-sm font-medium text-gray-500">IFSC Code</dt>
+                                                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                                    {selectedAccount.ifscCode}
+                                                </dd>
                                             </div>
                                             <div className="py-3 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                                                <dt className="text-sm font-medium text-gray-500">TCS Applicable</dt>
-                                                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{selectedLedger.isTCSApplicable ? 'Yes' : 'No'}</dd>
+                                                <dt className="text-sm font-medium text-gray-500">Branch</dt>
+                                                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                                    {selectedAccount.branch}
+                                                </dd>
                                             </div>
                                             <div className="py-3 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                                                <dt className="text-sm font-medium text-gray-500">GST Applicable</dt>
-                                                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{selectedLedger.isGSTApplicable ? 'Yes' : 'No'}</dd>
+                                                <dt className="text-sm font-medium text-gray-500">Minimum Balance</dt>
+                                                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                                                    {selectedAccount.minimumBalance?.toLocaleString('en-US', { 
+                                                        style: 'currency', 
+                                                        currency: 'INR' 
+                                                    })}
+                                                </dd>
                                             </div>
                                         </dl>
                                     </div>
                                 </div>
 
-                                <SignatureAndRemarks signatures={Array.isArray(selectedLedger.signatureAndRemarks) ? selectedLedger.signatureAndRemarks : []}  />
+                                <SignatureAndRemarks 
+                                    signatures={Array.isArray(selectedAccount.signatureAndRemarks) 
+                                        ? selectedAccount.signatureAndRemarks 
+                                        : []} 
+                                />
 
                                 <div className="mt-4">
                                     <label htmlFor="remarks" className="block text-sm font-medium text-gray-700">
@@ -266,4 +289,4 @@ function VerifyLedger(props) {
     );
 }
 
-export default React.memo (VerifyLedger)
+export default React.memo(VerifyBankAccount);
