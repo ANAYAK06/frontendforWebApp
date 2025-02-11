@@ -45,7 +45,7 @@ function VerifyBusinessOpportunity(props) {
         }
     }, [dispatch, userRoleId]);
 
-   
+
 
     useEffect(() => {
         onStateChange(loading, hasContent);
@@ -149,11 +149,10 @@ function VerifyBusinessOpportunity(props) {
                                                 </td>
                                                 <td className="border px-4 py-2">{opportunity.opportunityNumber}</td>
                                                 <td className="border px-4 py-2">
-                                                    <span className={`px-2 py-1 rounded-full text-xs ${
-                                                        opportunity.type === 'TENDER'
+                                                    <span className={`px-2 py-1 rounded-full text-xs ${opportunity.type === 'TENDER'
                                                             ? 'bg-purple-100 text-purple-800'
                                                             : 'bg-blue-100 text-blue-800'
-                                                    }`}>
+                                                        }`}>
                                                         {opportunity.type}
                                                     </span>
                                                 </td>
@@ -280,7 +279,7 @@ function VerifyBusinessOpportunity(props) {
                                                     <div className="bg-gray-50 p-4 rounded-lg">
                                                         <p className="text-sm text-gray-600">Tender Number</p>
                                                         <p className="text-base font-semibold text-gray-800">
-                                                        {selectedOpportunity.tenderDetails?.tenderNumber}
+                                                            {selectedOpportunity.tenderDetails?.tenderNumber}
                                                         </p>
                                                     </div>
                                                     <div className="bg-gray-50 p-4 rounded-lg">
@@ -344,47 +343,78 @@ function VerifyBusinessOpportunity(props) {
                                         )}
 
                                         {/* Joint Venture Details */}
+                                        {/* Joint Venture Details */}
                                         {selectedOpportunity.jointVentureAcceptable && (
                                             <div className="bg-white p-6 rounded-lg shadow-md">
                                                 <h4 className="text-lg font-semibold text-gray-800 mb-4">Joint Venture Details</h4>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                                        <p className="text-sm text-gray-600">Company Name</p>
-                                                        <p className="text-base font-semibold text-gray-800">
-                                                            {selectedOpportunity.jointVentureDetails?.companyName}
-                                                        </p>
+                                                {Array.isArray(selectedOpportunity.jointVentureDetails) ? (
+                                                    <div className="space-y-6">
+                                                        {selectedOpportunity.jointVentureDetails.map((venture, index) => (
+                                                            <div key={index} className={`border ${venture.isFrontParty ? 'border-indigo-500' : 'border-gray-200'} rounded-lg p-4`}>
+                                                                <div className="flex justify-between items-center mb-4">
+                                                                    <h5 className="text-md font-semibold text-gray-800">
+                                                                        Partner {index + 1}
+                                                                        {venture.isFrontParty && (
+                                                                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                                                                Front Party
+                                                                            </span>
+                                                                        )}
+                                                                    </h5>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                                                        <p className="text-sm text-gray-600">Company Name</p>
+                                                                        <p className="text-base font-semibold text-gray-800">
+                                                                            {venture.companyName}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                                                        <p className="text-sm text-gray-600">Registration Number</p>
+                                                                        <p className="text-base font-semibold text-gray-800">
+                                                                            {venture.registrationNumber}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                                                        <p className="text-sm text-gray-600">Share Percentage</p>
+                                                                        <p className="text-base font-semibold text-gray-800">
+                                                                            {venture.sharePercentage}%
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                                                        <p className="text-sm text-gray-600">Contact Person</p>
+                                                                        <p className="text-base font-semibold text-gray-800">
+                                                                            {venture.contactPerson}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                                                        <p className="text-sm text-gray-600">Contact Email</p>
+                                                                        <p className="text-base font-semibold text-gray-800">
+                                                                            {venture.contactEmail}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                                                        <p className="text-sm text-gray-600">Contact Phone</p>
+                                                                        <p className="text-base font-semibold text-gray-800">
+                                                                            {venture.contactPhone}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+
+                                                        {/* Total Share Percentage Summary */}
+                                                        <div className="mt-4 p-4 bg-indigo-50 rounded-lg">
+                                                            <p className="text-sm text-gray-600">Total Share Percentage</p>
+                                                            <p className="text-lg font-semibold text-indigo-800">
+                                                                {selectedOpportunity.jointVentureDetails.reduce((sum, venture) =>
+                                                                    sum + parseFloat(venture.sharePercentage), 0
+                                                                )}%
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                                        <p className="text-sm text-gray-600">Registration Number</p>
-                                                        <p className="text-base font-semibold text-gray-800">
-                                                            {selectedOpportunity.jointVentureDetails?.registrationNumber}
-                                                        </p>
-                                                    </div>
-                                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                                        <p className="text-sm text-gray-600">Share Percentage</p>
-                                                        <p className="text-base font-semibold text-gray-800">
-                                                            {selectedOpportunity.jointVentureDetails?.sharePercentage}%
-                                                        </p>
-                                                    </div>
-                                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                                        <p className="text-sm text-gray-600">Contact Person</p>
-                                                        <p className="text-base font-semibold text-gray-800">
-                                                            {selectedOpportunity.jointVentureDetails?.contactPerson}
-                                                        </p>
-                                                    </div>
-                                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                                        <p className="text-sm text-gray-600">Contact Email</p>
-                                                        <p className="text-base font-semibold text-gray-800">
-                                                            {selectedOpportunity.jointVentureDetails?.contactEmail}
-                                                        </p>
-                                                    </div>
-                                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                                        <p className="text-sm text-gray-600">Contact Phone</p>
-                                                        <p className="text-base font-semibold text-gray-800">
-                                                            {selectedOpportunity.jointVentureDetails?.contactPhone}
-                                                        </p>
-                                                    </div>
-                                                </div>
+                                                ) : (
+                                                    <p className="text-gray-500 italic">No joint venture details available</p>
+                                                )}
                                             </div>
                                         )}
                                     </div>

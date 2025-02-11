@@ -44,6 +44,22 @@ import VerifyBusinessOppertunity from './Pages/Projects/VerifyBusinessOppertunit
 import BOQDraft from './Pages/Projects/BOQDraft';
 import VerifyBOQ from './Pages/Projects/VerifyBOQ';
 import BOQRevisionPage from './Pages/Projects/BOQRevisionPage';
+import VerifyRevision from './Pages/Projects/VerifyRevision';
+import TenderStatusPage from './Pages/Projects/TenderStatusPage';
+import VerifyTenderFinalStatus from './Pages/Projects/VerifyTenderFinalStatus';
+import HSNCreation from './Pages/TaxModule/HSNCreation';
+import VerifyHSNCode from './Pages/TaxModule/VerifyHSNCode';
+
+import BaseCodeCreation from './Pages/Inventory/ItemCode/BaseCodeCreation';
+import UnitCreation from './Pages/Inventory/UnitCreation';
+import VerifyUnit from './Pages/Inventory/VerifyUnit';
+import ClientBOQPage from './Pages/Projects/ClientBOQPage';
+import VerifyClientBOQ from './Pages/Projects/VerifyClientBOQ';
+import ClientCreation from './Pages/Accounts/ClientCreation';
+import SubClientCreation from './Pages/Accounts/SubClientCreation';
+import VerifyClient from './Pages/Accounts/VerifyClient';
+import VerifySubClient from './Pages/Accounts/VerifySubClient';
+import VerifyBaseCode from './Pages/Inventory/ItemCode/VerifyBaseCode';
 
 function App() {
 
@@ -108,6 +124,22 @@ function App() {
           <Route path='/create-bid' element ={ isLoggedIn ? (<BOQDraft/>):<Navigate to="/"/>} />
           <Route path='/verify-bid' element ={ isLoggedIn ? (<VerifyBOQ/>):<Navigate to="/"/>} />
           <Route path='/boqrevision' element ={ isLoggedIn ? (<BOQRevisionPage/>):<Navigate to="/"/>} />
+          <Route path='/verify-boqrevision' element ={ isLoggedIn ? (<VerifyRevision/>):<Navigate to="/"/>} />
+          <Route path='/update-tender-finalstatus' element ={ isLoggedIn ? (<TenderStatusPage/>):<Navigate to="/"/>} />
+          <Route path='/verify-tenderfinalstatus' element ={ isLoggedIn ? (<VerifyTenderFinalStatus/>):<Navigate to="/"/>} />
+          <Route path='/hsnsaccode-creation' element ={ isLoggedIn ? (<HSNCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-hsnsaccode' element ={ isLoggedIn ? (<VerifyHSNCode/>):<Navigate to="/"/>} />
+          <Route path='/itemcode-creation' element ={ isLoggedIn ? (<BaseCodeCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-itemcode' element ={ isLoggedIn ? (<VerifyBaseCode/>):<Navigate to="/"/>} />
+          <Route path='/itemcode-unitcreation' element ={ isLoggedIn ? (<UnitCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-itemcodeunit' element ={ isLoggedIn ? (<VerifyUnit/>):<Navigate to="/"/>} />
+          <Route path='/created-tender-submit' element ={ isLoggedIn ? (<ClientBOQPage/>):<Navigate to="/"/>} />
+          <Route path='/verify-tender-submission' element ={ isLoggedIn ? (<VerifyClientBOQ/>):<Navigate to="/"/>} />
+          <Route path='/create-client' element ={ isLoggedIn ? (<ClientCreation/>):<Navigate to="/"/>} />
+          <Route path='/create-subclient' element ={ isLoggedIn ? (<SubClientCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-client' element ={ isLoggedIn ? (<VerifyClient/>):<Navigate to="/"/>} />
+          <Route path='/verify-subclient' element ={ isLoggedIn ? (<VerifySubClient/>):<Navigate to="/"/>} />
+
         
         
         </Routes>

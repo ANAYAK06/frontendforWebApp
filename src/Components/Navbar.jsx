@@ -12,6 +12,7 @@ import { fetchNotificationCount, updateNotificationCount } from '../Slices/notif
 import { Link } from 'react-router-dom';
 
 import Trackchatbot from './Trackchatbot';
+import SmartTrackBot from './SmartTrackBot';
 
 
 
@@ -227,7 +228,7 @@ function Navbar({ isLoggedIn, userName, roleName, onLogout }) {
       </div>
      {
       isLoggedIn &&  (
-        <Trackchatbot isOpen= {isTrackBotOpen} onClose ={()=>setIsTrackBotOpen(false)} />
+        <SmartTrackBot isOpen= {isTrackBotOpen} onClose ={()=>setIsTrackBotOpen(false)} />
       )
      }
 

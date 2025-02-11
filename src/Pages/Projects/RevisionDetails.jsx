@@ -1,9 +1,9 @@
 // components/BOQRevision/RevisionDetail.jsx
 
-import React, { useState, useCallback } from 'react';
-import { useDispatch } from 'react-redux';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { FaArrowLeft, FaCheck, FaPencilAlt, FaFilePdf, FaFileAlt } from 'react-icons/fa';
-import { } from '../../Slices/clientBoqSlices'; // You'll need to create this
+import { updateBOQRatesThunk} from '../../Slices/boqRevisionSlices'; 
 import { showToast } from '../../utilities/toastUtilities';
 import SignatureAndRemarks from '../../Components/SignatureAndRemarks';
 
@@ -12,6 +12,15 @@ const RevisionDetail = ({ boq, onBack }) => {
     const [editableItems, setEditableItems] = useState({});
     const [modifiedBOQ, setModifiedBOQ] = useState(null);
     const [remarks, setRemarks] = useState('');
+
+    const { loading, error, updateSuccess } = useSelector(state => state.boqRevision);
+
+
+    useEffect(() => {
+        if (updateSuccess) {
+            onBack();
+        }
+    }, [updateSuccess, onBack]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
@@ -39,23 +48,77 @@ const RevisionDetail = ({ boq, onBack }) => {
         }));
     };
 
+    const handleSubmit = async () => {
+        if (!remarks.trim()) {
+            showToast('error', 'Please enter remarks before submitting revision');
+            return;
+        }
+
+        if (!modifiedBOQ) {
+            showToast('error', 'No changes have been made to the BOQ');
+            return;
+        }
+
+        try {
+            const currentItems = modifiedBOQ.items;
+
+            // Validate items before submission
+            const invalidItems = currentItems.filter(item => 
+                !item.unitRate || 
+                item.unitRate <= 0 || 
+                !item.amount || 
+                item.amount <= 0
+            );
+
+            if (invalidItems.length > 0) {
+                showToast('error', 'All items must have valid rates and amounts');
+                return;
+            }
+
+            const updateData = {
+                items: currentItems.map(item => ({
+                    _id: item._id,
+                    unitRate: Number(item.unitRate),
+                    amount: Number(item.amount)
+                })),
+                remarks: remarks.trim(),
+                totalAmount: Number(modifiedBOQ.totalAmount)
+            };
+
+            await dispatch(updateBOQRatesThunk({
+                id: boq._id,
+                updateData
+            })).unwrap();
+
+            showToast('success', 'BOQ rates updated successfully');
+            onBack();
+        } catch (error) {
+            console.error('Error updating BOQ rates:', error);
+            showToast('error', error.message || 'Failed to update BOQ rates');
+        }
+    };
+
     const handleUnitRateChange = (itemId, newRate) => {
         const numericRate = parseFloat(newRate);
-        if (isNaN(numericRate)) return;
+        if (isNaN(numericRate) || numericRate < 0) return;
 
         const updatedItems = modifiedBOQ ? modifiedBOQ.items : boq.items;
         const newItems = updatedItems.map(item => {
             if (item._id === itemId) {
                 const newAmount = calculateAmount(item.qty, numericRate);
+                const isValidRate = numericRate > 0;
+                
                 return {
                     ...item,
                     unitRate: numericRate,
-                    amount: newAmount
+                    amount: isValidRate ? newAmount : 0,
+                    isRateValid: isValidRate
                 };
             }
             return item;
         });
-        const newTotal = newItems.reduce((sum, item) => sum + item.amount, 0);
+
+        const newTotal = newItems.reduce((sum, item) => sum + (item.amount || 0), 0);
 
         setModifiedBOQ({
             ...boq,
@@ -82,36 +145,20 @@ const RevisionDetail = ({ boq, onBack }) => {
         return 'text-orange-500';
     };
 
-    const handleSubmit = async () => {
-        if (!remarks.trim()) {
-            showToast('error', 'Please enter remarks before submitting revision');
-            return;
-        }
-
-        try {
-            const currentItems = modifiedBOQ ? modifiedBOQ.items : boq.items;
-
-            const updateData = {
-                remarks: remarks.trim(),
-                items: currentItems.map(item => ({
-                    _id: item._id,
-                    unitRate: Number(item.unitRate),
-                    amount: Number(item.amount)
-                })),
-                totalAmount: Number(modifiedBOQ ? modifiedBOQ.totalAmount : boq.totalAmount)
-            };
-
-            await dispatch(({
-                id: boq._id,
-                formData: updateData
-            })).unwrap();
-
-            showToast('success', 'BOQ revision submitted successfully');
-            onBack();
-        } catch (error) {
-            showToast('error', error.message || 'Failed to submit BOQ revision');
-        }
+    const isSubmitDisabled = () => {
+        if (!modifiedBOQ || !remarks.trim()) return true;
+        
+        return modifiedBOQ.items.some(item => 
+            !item.unitRate || 
+            item.unitRate <= 0 || 
+            !item.amount || 
+            item.amount <= 0
+        );
     };
+
+
+
+  
 
     return (
         <div className="p-6">
@@ -297,7 +344,12 @@ const RevisionDetail = ({ boq, onBack }) => {
             <div className="mt-6 flex justify-end">
                 <button
                     onClick={handleSubmit}
-                    className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium"
+                    disabled={isSubmitDisabled()}
+                    className={`px-6 py-2 rounded-md font-medium ${
+                        isSubmitDisabled()
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-indigo-600 hover:bg-indigo-700'
+                    } text-white`}
                 >
                     Submit Revision
                 </button>

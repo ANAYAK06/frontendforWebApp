@@ -12,7 +12,6 @@ const RevisionList = ({ onSelectBOQ }) => {
 
     useEffect(() => {
         dispatch(fetchAcceptedBOQs());
-      
         
     }, [dispatch]);
 

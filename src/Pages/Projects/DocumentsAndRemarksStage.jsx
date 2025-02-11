@@ -11,7 +11,7 @@ import {
     AlertDialogCancel,
 } from '../../Components/DailogComponent';
 
-const DocumentsAndRemarksStage = ({ attachments, remarks, onUpdate, onNext, onBack }) => {
+const DocumentsAndRemarksStage = ({ attachments, remarks,variationAcceptance, onUpdate, onNext, onBack }) => {
     const [showNewAttachmentDialog, setShowNewAttachmentDialog] = useState(false);
     const [newAttachmentName, setNewAttachmentName] = useState('');
     const [attachmentFile, setAttachmentFile] = useState(null);
@@ -43,10 +43,36 @@ const DocumentsAndRemarksStage = ({ attachments, remarks, onUpdate, onNext, onBa
     const handleNext = () => {
         onNext();
     };
+    const handleVariationChange = (e) => {
+        const value = e.target.value === '' ? '' : Math.min(Math.max(0, Number(e.target.value)), 100);
+        onUpdate({ variationAcceptance: value });
+    }
 
     return (
         <div className="p-6">
             {/* Supporting Documents */}
+            <div className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Variation Acceptance</h2>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <input
+                        type="number"
+                        value={variationAcceptance}
+                        onChange={handleVariationChange}
+                        
+                        className="w-24 px-3 py-2 border rounded-md"
+                        min="0"
+                        max="100"
+                         step="0.01"
+                        placeholder="0"
+                    />
+                    <span className="text-gray-600">%</span>
+                    <span className="text-sm text-gray-500 ml-2">
+                        Maximum percentage by which the total BOQ value can be reduced
+                    </span>
+                </div>
+            </div>
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-2">

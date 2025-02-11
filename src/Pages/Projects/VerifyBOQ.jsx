@@ -333,7 +333,7 @@ function VerifyBOQ(props) {
                     id: selectedBOQ._id,
                     remarks: remarks.trim()
                 })).unwrap();
-    
+
                 showToast('success', 'BOQ rejected successfully');
                 setSelectedBOQ(null);
                 setRemarks('');
@@ -344,8 +344,8 @@ function VerifyBOQ(props) {
                 showToast('error', error.message || 'Failed to reject BOQ');
                 setShowRejectDialog(false);
             }
-        },[dispatch,selectedBOQ, remarks, userRoleId]
-    ) 
+        }, [dispatch, selectedBOQ, remarks, userRoleId]
+    )
 
     const renderActionButtons = () => (
         <div className="mt-6 flex justify-end space-x-4">
@@ -564,6 +564,38 @@ function VerifyBOQ(props) {
                                                 </tr>
                                             </tbody>
                                         </table>
+                                    </div>
+                                </div>
+                                {/* Variation Acceptance Summary */}
+                                <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
+                                    <h4 className="text-lg font-semibold text-gray-800 mb-4">
+                                        Variation Acceptance Summary
+                                    </h4>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="bg-indigo-50 p-4 rounded-lg">
+                                            <p className="text-sm text-gray-600">Current Amount</p>
+                                            <p className="text-lg font-semibold text-indigo-700">
+                                                {formatCurrency((modifiedBOQ || selectedBOQ).totalAmount)}
+                                            </p>
+                                        </div>
+                                        <div className="bg-purple-50 p-4 rounded-lg">
+                                            <p className="text-sm text-gray-600">Variation Acceptance</p>
+                                            <p className="text-lg font-semibold text-purple-700">
+                                                {selectedBOQ.variationAcceptance}%
+                                            </p>
+                                        </div>
+                                        <div className="bg-orange-50 p-4 rounded-lg">
+                                            <p className="text-sm text-gray-600">Amount After Max Variation</p>
+                                            <p className="text-lg font-semibold text-orange-700">
+                                                {formatCurrency(
+                                                    (modifiedBOQ || selectedBOQ).totalAmount *
+                                                    (1 - selectedBOQ.variationAcceptance / 100)
+                                                )}
+                                                <span className="text-xs ml-2 text-gray-500">
+                                                    (After {selectedBOQ.variationAcceptance}% reduction)
+                                                </span>
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
 

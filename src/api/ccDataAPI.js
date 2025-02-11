@@ -1,10 +1,7 @@
 import axios from "axios";
 const API_BASE_URL = '/api/costcentres';
 
-export const fetchAllCostCentreData = async ()=>{
-    const response = await axios.get('/api/costcentres/allcostcentredata')
-    return response.data
-}
+
 
 
 
@@ -96,3 +93,29 @@ export const getEligibleCCForBudgetAssign = async (ccid, subId, fiscalYear) => {
         throw error.response.data;
     }
 };
+
+export const fetchCCCodesAPI = async () => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/getcccodes`, {
+            headers: getAuthHeader(),
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+};
+
+export const fetchAllCostCentreData = async ()=>{
+    try {
+        const response = await axios.get(`${API_BASE_URL}/allcostcentredata`,
+            {
+                headers: getAuthHeader(),
+    });
+    return response.data;
+    } catch (error) {
+        throw error.response.data;
+        
+    }
+    
+    
+}

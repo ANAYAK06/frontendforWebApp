@@ -14,6 +14,8 @@ import {
     addChecklistItems,
     updateChecklist,
     deleteChecklist,
+    getBOQById
+   
 } from '../api/clientBoqAPI';
 
 // Create BOQ
@@ -176,6 +178,18 @@ export const deleteChecklistThunk = createAsyncThunk(
         try {
             const response = await deleteChecklist(checklistId);
             return response.data;
+        } catch (error) {
+            return rejectWithValue(error);
+        }
+    }
+);
+
+export const fetchBOQById = createAsyncThunk(
+    'boq/fetchById',
+    async (id, { rejectWithValue }) => {
+        try {
+            const response = await getBOQById(id);
+            return response.boq;
         } catch (error) {
             return rejectWithValue(error);
         }
@@ -425,6 +439,19 @@ const boqSlice = createSlice({
             .addCase(deleteChecklistThunk.rejected, (state, action) => {
                 state.checklistLoading = false;
                 state.checklistError = action.payload;
+            })
+            .addCase(fetchBOQById.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(fetchBOQById.fulfilled, (state, action) => {
+                state.loading = false;
+                state.currentBOQ = action.payload;
+                state.success = true;
+            })
+            .addCase(fetchBOQById.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
             });
     }
 });

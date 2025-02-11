@@ -28,6 +28,7 @@ const ReviewStage = ({ formData, onReset, onBack }) => {
             // Add business opportunity ID and excel file
             formDataToSubmit.append('businessOpportunityId', opportunity._id);
             formDataToSubmit.append('excelFile', excelFile);
+            
 
             // Add checklist data
             const checklistEntries = checklistItems.map(item => ({
@@ -36,6 +37,8 @@ const ReviewStage = ({ formData, onReset, onBack }) => {
                 comments: item.comments || ''
             }));
             formDataToSubmit.append('checklist', JSON.stringify(checklistEntries));
+            
+            formDataToSubmit.append('variationAcceptance', formData.variationAcceptance);
 
             // Process item attachments and metadata
             if (excelData && excelData.rows) {
@@ -75,22 +78,22 @@ const ReviewStage = ({ formData, onReset, onBack }) => {
             }
 
             // Process supporting documents with proper metadata
-           // Process supporting documents with proper metadata
-if (attachments.length > 0) {
-    const attachmentMetadata = attachments.map((attachment, index) => {
-        const fileName = `support_${index}_${Date.now()}_${attachment.file.name}`;
-        formDataToSubmit.append('attachments', attachment.file, fileName);
-        
-        return {
-            name: attachment.name,  // User-entered name from dialog
-            originalName: attachment.file.name,
-            fileName: fileName
-        };
-    });
-    
-    // Add the metadata to the form data
-    formDataToSubmit.append('attachmentMetadata', JSON.stringify(attachmentMetadata));
-}
+            // Process supporting documents with proper metadata
+            if (attachments.length > 0) {
+                const attachmentMetadata = attachments.map((attachment, index) => {
+                    const fileName = `support_${index}_${Date.now()}_${attachment.file.name}`;
+                    formDataToSubmit.append('attachments', attachment.file, fileName);
+
+                    return {
+                        name: attachment.name,  // User-entered name from dialog
+                        originalName: attachment.file.name,
+                        fileName: fileName
+                    };
+                });
+
+                // Add the metadata to the form data
+                formDataToSubmit.append('attachmentMetadata', JSON.stringify(attachmentMetadata));
+            }
 
             // Add remarks if present
             if (remarks) {
@@ -190,6 +193,19 @@ if (attachments.length > 0) {
                         <div className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
                             <FaFileExcel className="h-6 w-6 text-green-500" />
                             <span className="text-sm font-medium text-gray-900">{excelFile.name}</span>
+                        </div>
+                    </div>
+                    {/* Variation Acceptance Section */}
+                    <div className="bg-white rounded-lg shadow p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Variation Details</h3>
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-500">Maximum Acceptable Variation</span>
+                                <span className="text-lg font-semibold text-indigo-600">{formData.variationAcceptance}%</span>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">
+                                The BOQ value can be reduced up to this percentage during negotiations
+                            </p>
                         </div>
                     </div>
 

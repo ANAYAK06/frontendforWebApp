@@ -24,6 +24,7 @@ const BOQCreation = () => {
         excelFile: null,
         excelData: null,
         attachments: [],
+        variationAcceptance: 0,
         remarks: ''
     });
 

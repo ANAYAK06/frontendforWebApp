@@ -6,8 +6,10 @@ import {
     updateCostCentreStatus,
     rejectCostCentre,
     getAllCostCentres,
-    getEligibleCCForBudgetAssign
+    getEligibleCCForBudgetAssign,
+    fetchCCCodesAPI
 } from '../api/ccDataAPI';
+
 
 
 export const fetchEligibleCCForBudget = createAsyncThunk(
@@ -94,9 +96,36 @@ export const fetchAllCCdata = createAsyncThunk(
     }
 );
 
+export const fetchCCCodesForDropdown = createAsyncThunk(
+    'costCentres/fetchCCCodes',
+    async (_, { rejectWithValue }) => {
+        try {
+            console.log('Thunk: Starting to fetch CC codes...');
+            const response = await fetchCCCodesAPI();  // Using the renamed function
+            
+            console.log('Thunk: Raw response:', response);
+            
+            if (!response || !response.data) {
+                console.error('Thunk: Invalid response - no data property');
+                throw new Error('Invalid response format');
+            }
+
+            console.log('Thunk: Formatted data:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Thunk: Error occurred:', error);
+            return rejectWithValue(error.message || 'Failed to fetch CC codes');
+        }
+    }
+);
+
+
 const costCentreSlice = createSlice({
     name: 'costCentres',
     initialState: {
+        ccCodes:[],
+        ccCodesLoading: false,
+        ccCodesError: null,
         allCostCentreData: [],
         eligibleCostCentres: [], 
         costCentresForVerification: [],
@@ -128,7 +157,12 @@ const costCentreSlice = createSlice({
         resetEligibleCC: (state) => {
             state.eligibleCostCentres = [];
             state.eligibleCCError = null;
+        },
+        resetCCCodes: (state) => {
+            state.ccCodes = [];
+            state.ccCodesError = null;
         }
+
     },
     extraReducers: (builder) => {
         builder
@@ -203,15 +237,31 @@ const costCentreSlice = createSlice({
                 state.eligibleCCError = null;
             })
             .addCase(fetchEligibleCCForBudget.fulfilled, (state, action) => {
+                console.log('Thunk: Fetching CC codes...');
                 state.eligibleCCLoading = false;
                 state.eligibleCostCentres = action.payload;
+                console.log('Thunk: Fetched CC codes:', action.payload);
             })
             .addCase(fetchEligibleCCForBudget.rejected, (state, action) => {
                 state.eligibleCCLoading = false;
                 state.eligibleCCError = action.payload;
+            })
+            .addCase(fetchCCCodesForDropdown.pending, (state) => {
+                
+                state.ccCodesLoading = true;
+                state.ccCodesError = null;
+            })
+            .addCase(fetchCCCodesForDropdown.fulfilled, (state, action) => {
+                console.log(action.payload);
+                state.ccCodes = Array.isArray(action.payload) ? action.payload : [];
+                state.ccCodesError = null;
+            })
+            .addCase(fetchCCCodesForDropdown.rejected, (state, action) => {
+                state.ccCodesLoading = false;
+                state.ccCodesError = action.payload;
             });
     }
 });
 
-export const { resetCostCentreState, resetRejectSuccess, resetUpdateSuccess ,} = costCentreSlice.actions;
+export const { resetCostCentreState, resetRejectSuccess, resetUpdateSuccess , resetCCCodes} = costCentreSlice.actions;
 export default costCentreSlice.reducer;

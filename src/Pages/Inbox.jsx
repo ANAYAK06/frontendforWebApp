@@ -11,6 +11,14 @@ import VerifyFixedDeposit from './Accounts/VerifyFixedDeposit';
 import VerifyTdsAccount from './TaxModule/VerifyTdsAccount';
 import VerifyBusinessOppertunity from './Projects/VerifyBusinessOppertunity';
 import VerifyBOQ from './Projects/VerifyBOQ';
+import VerifyRevision from './Projects/VerifyRevision';
+import VerifyTenderFinalStatus from './Projects/VerifyTenderFinalStatus';
+import VerifyHSNCode from './TaxModule/VerifyHSNCode';
+import VerifyUnit from './Inventory/VerifyUnit';
+import VerifyClientBOQ from './Projects/VerifyClientBOQ';
+import VerifyClient from './Accounts/VerifyClient';
+import VerifySubClient from './Accounts/VerifySubClient';
+import VerifyBaseCode from './Inventory/ItemCode/VerifyBaseCode';
 
 // Base components - these work independently of CCID
 const baseComponents = [
@@ -49,7 +57,43 @@ const baseComponents = [
   { 
     Component:VerifyBOQ, 
     key: 'boqverification',
-  }
+  },
+  { 
+    Component:VerifyRevision, 
+    key: 'boqrevisionverification',
+  },
+  { 
+    Component:VerifyTenderFinalStatus, 
+    key: 'tenderfinalstatus',
+  },
+  { 
+    Component:VerifyHSNCode, 
+    key: 'hsncodeverification',
+  },
+  { 
+    Component:VerifyUnit, 
+    key: 'unitverification',
+  },
+  { 
+    Component:VerifyClientBOQ, 
+    key: 'clientboqverification',
+  },
+  { 
+    Component:VerifyClient, 
+    key: 'clientverification',
+  },
+  {
+    Component: VerifySubClient,
+    key: 'subclientverification',
+  },
+ {
+  Component: VerifyBaseCode,
+  key:'basecodeverification',
+
+ }
+ 
+  
+
 ];
 
 // Budget components - these depend on CCID

@@ -4,7 +4,7 @@ import { createNewOpportunity, resetOpportunityState } from '../../Slices/busine
 import { showToast } from '../../utilities/toastUtilities';
 import CustomDatePicker from '../../Components/CustomDatePicker';
 import { Card, CardContent, CardHeader, CardTitle } from '../../Components/Card';
-import { FaBuilding, FaFileContract, FaHandshake, FaUserTie } from "react-icons/fa";
+import { FaBuilding, FaFileContract, FaHandshake, FaUserTie, FaTrash } from "react-icons/fa";
 
 const BusinessOpportunityCreation = () => {
     const dispatch = useDispatch();
@@ -39,15 +39,8 @@ const BusinessOpportunityCreation = () => {
             }
         },
         jointVentureAcceptable: false,
-        jointVentureDetails: {
-            companyName: '',
-            registrationNumber: '',
-            sharePercentage: '',
-            contactPerson: '',
-            contactEmail: '',
-            contactPhone: ''
-        },
-         remarks: ''
+        jointVentureDetails: [],
+        remarks: ''
     }), []);
 
     const [formData, setFormData] = useState(initialFormState);
@@ -76,10 +69,72 @@ const BusinessOpportunityCreation = () => {
             dispatch(resetOpportunityState());
         }
     }, [error, dispatch]);
+    const handleAddJointVenture = useCallback(() => {
+        setFormData(prev => ({
+            ...prev,
+            jointVentureDetails: [
+                ...prev.jointVentureDetails,
+                {
+                    companyName: '',
+                    registrationNumber: '',
+                    sharePercentage: '',
+                    contactPerson: '',
+                    contactEmail: '',
+                    contactPhone: '',
+                    isFrontParty: prev.jointVentureDetails.length === 0 // First partner is front party by default
+                }
+            ]
+        }));
+    }, []);
+    
+    const handleRemoveJointVenture = useCallback((index) => {
+        setFormData(prev => {
+            const newDetails = [...prev.jointVentureDetails];
+            newDetails.splice(index, 1);
+            
+            // If we removed the front party, make the first remaining partner the front party
+            if (newDetails.length > 0 && !newDetails.some(d => d.isFrontParty)) {
+                newDetails[0].isFrontParty = true;
+            }
+            
+            return {
+                ...prev,
+                jointVentureDetails: newDetails
+            };
+        });
+    }, []);
+    
+    const handleJointVentureChange = useCallback((index, field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            jointVentureDetails: prev.jointVentureDetails.map((venture, i) => 
+                i === index ? { ...venture, [field]: value } : venture
+            )
+        }));
+    }, []);
+    
+    const handleFrontPartyChange = useCallback((index) => {
+        setFormData(prev => ({
+            ...prev,
+            jointVentureDetails: prev.jointVentureDetails.map((venture, i) => ({
+                ...venture,
+                isFrontParty: i === index
+            }))
+        }));
+    }, []);
+    
     const handleChange = useCallback((e) => {
         const { name, value, type, checked } = e.target;
         setIsFormDirty(true);
-    
+        if (name === 'jointVentureAcceptable') {
+            setFormData(prev => ({
+                ...prev,
+                jointVentureAcceptable: checked,
+                jointVentureDetails: checked ? [] : undefined // Reset to empty array when enabled, undefined when disabled
+            }));
+            return;
+        }
+
         if (name.includes('.')) {
             const parts = name.split('.');
             if (parts.length === 3) {
@@ -128,9 +183,9 @@ const BusinessOpportunityCreation = () => {
         }
     }, []);
 
-   
 
-    
+
+
 
     const handleDateChange = useCallback((date, fieldName) => {
         setIsFormDirty(true);
@@ -535,6 +590,7 @@ const BusinessOpportunityCreation = () => {
                     </Card>
                 )}
 
+              
                 {/* Joint Venture Details */}
                 <Card>
                     <CardHeader>
@@ -556,93 +612,123 @@ const BusinessOpportunityCreation = () => {
                             </div>
 
                             {formData.jointVentureAcceptable && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">
-                                            Company Name <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="jointVentureDetails.companyName"
-                                            value={formData.jointVentureDetails.companyName}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
-                                            required
-                                        />
-                                    </div>
+                                <div className="space-y-6">
+                                    {formData.jointVentureDetails.map((venture, index) => (
+                                        <div key={index} className="border p-4 rounded-lg bg-gray-50">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h3 className="text-lg font-medium">Joint Venture Partner {index + 1}</h3>
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="flex items-center space-x-2">
+                                                        <input
+                                                            type="radio"
+                                                            name="frontParty"
+                                                            checked={venture.isFrontParty}
+                                                            onChange={() => handleFrontPartyChange(index)}
+                                                            className="h-4 w-4 text-indigo-600"
+                                                        />
+                                                        <label className="text-sm font-medium text-gray-700">Front Party</label>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveJointVenture(index)}
+                                                        className="text-red-600 hover:text-red-800"
+                                                    >
+                                                        <FaTrash/>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Company Name <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={venture.companyName}
+                                                        onChange={(e) => handleJointVentureChange(index, 'companyName', e.target.value)}
+                                                        className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
+                                                        required
+                                                    />
+                                                </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">
-                                            Registration Number <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="jointVentureDetails.registrationNumber"
-                                            value={formData.jointVentureDetails.registrationNumber}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
-                                            required
-                                        />
-                                    </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Registration Number <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={venture.registrationNumber}
+                                                        onChange={(e) => handleJointVentureChange(index, 'registrationNumber', e.target.value)}
+                                                        className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
+                                                        required
+                                                    />
+                                                </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">
-                                            Share Percentage <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="number"
-                                            name="jointVentureDetails.sharePercentage"
-                                            value={formData.jointVentureDetails.sharePercentage}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
-                                            required
-                                            min="0"
-                                            max="100"
-                                        />
-                                    </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Share Percentage <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        value={venture.sharePercentage}
+                                                        onChange={(e) => handleJointVentureChange(index, 'sharePercentage', parseFloat(e.target.value))}
+                                                        className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
+                                                        required
+                                                        min="0"
+                                                        max="100"
+                                                    />
+                                                </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">
-                                            Contact Person <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="jointVentureDetails.contactPerson"
-                                            value={formData.jointVentureDetails.contactPerson}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
-                                            required
-                                        />
-                                    </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Contact Person <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={venture.contactPerson}
+                                                        onChange={(e) => handleJointVentureChange(index, 'contactPerson', e.target.value)}
+                                                        className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
+                                                        required
+                                                    />
+                                                </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">
-                                            Contact Email <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="email"
-                                            name="jointVentureDetails.contactEmail"
-                                            value={formData.jointVentureDetails.contactEmail}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
-                                            required
-                                        />
-                                    </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Contact Email <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="email"
+                                                        value={venture.contactEmail}
+                                                        onChange={(e) => handleJointVentureChange(index, 'contactEmail', e.target.value)}
+                                                        className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
+                                                        required
+                                                    />
+                                                </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">
-                                            Contact Phone <span className="text-red-500">*</span>
-                                        </label>
-                                        <input
-                                            type="tel"
-                                            name="jointVentureDetails.contactPhone"
-                                            value={formData.jointVentureDetails.contactPhone}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
-                                            required
-                                            pattern="[+]?[0-9]{10,13}"
-                                        />
-                                    </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Contact Phone <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <input
+                                                        type="tel"
+                                                        value={venture.contactPhone}
+                                                        onChange={(e) => handleJointVentureChange(index, 'contactPhone', e.target.value)}
+                                                        className="mt-1 block w-full px-3 py-2 bg-white border rounded-md"
+                                                        required
+                                                        pattern="[+]?[0-9]{10,13}"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    <button
+                                        type="button"
+                                        onClick={handleAddJointVenture}
+                                        className="mt-4 px-4 py-2 border border-indigo-500 rounded-md shadow-sm text-sm font-medium text-indigo-500 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                        Add Joint Venture Partner
+                                    </button>
                                 </div>
                             )}
                         </div>

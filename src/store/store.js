@@ -19,6 +19,15 @@ import fixedDepositSlice from "../Slices/fixedDepositSlices"
 import tdsAccountSlice from "../Slices/tdsAccountSlices"
 import businessOppertunitySlice from "../Slices/businessOppertunitySlices"
 import clientBoq from  "../Slices/clientBoqSlices"
+import clientBoqRevision from "../Slices/boqRevisionSlices"
+import tenderStatusSlice from "../Slices/projectModuleSlices/tenderFinalStatus"
+import itemCodeSlice from "../Slices/inventoryModuleSlices/itemCodeSlices"
+import hsnSlice from "../Slices/taxModuleSlices/hsnSacCodeSlices"
+import unitSlice from "../Slices/inventoryModuleSlices/itemCodeUnitSlices"
+import clientFinalBOQ from "../Slices/projectModuleSlices/clientFinalBoqSlices"
+import clientSlice from "../Slices/accountsModuleSlices/clientSlices"
+import trackingSlice from "../Slices/trackingSlices"
+
 
 
 
@@ -43,7 +52,16 @@ const  store = configureStore({
         fixedDeposit:fixedDepositSlice,
         tds:tdsAccountSlice,
         businessOpportunity:businessOppertunitySlice,
-        boq:clientBoq
+        boq:clientBoq,
+        boqRevision:clientBoqRevision,
+        tenderStatus:tenderStatusSlice,
+        itemCode:itemCodeSlice,
+        hsnsac:hsnSlice,
+        unit:unitSlice,
+        clientFinalBOQ:clientFinalBOQ,
+        client:clientSlice,
+        tracking:trackingSlice
+        
 
 
 

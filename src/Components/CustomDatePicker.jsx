@@ -12,6 +12,32 @@ function CustomDatePicker({
   placeholder = "Select date",
   disabled = false
 }) {
+  // Convert UTC date string to local Date object for display
+  const getLocalDateFromUTC = (utcDate) => {
+    if (!utcDate) return null;
+    const date = new Date(utcDate);
+    return new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+  };
+
+  // Convert local Date to UTC string for storage
+  const getUTCFromLocalDate = (localDate) => {
+    if (!localDate) return null;
+    const date = new Date(localDate);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString();
+  };
+
+  const handleDateChange = (date) => {
+    if (date) {
+      // Set to start of day in local timezone
+      const localDate = new Date(date);
+      localDate.setHours(0, 0, 0, 0);
+      // Convert to UTC before calling parent's onChange
+      onChange(getUTCFromLocalDate(localDate));
+    } else {
+      onChange(null);
+    }
+  };
+
   const CustomInput = React.forwardRef(({ value, onClick }, ref) => (
     <div className="relative w-full">
       <input
@@ -37,17 +63,20 @@ function CustomDatePicker({
 
   CustomInput.displayName = 'CustomInput';
 
+  // Convert UTC string to local Date for DatePicker
+  const normalizedSelectedDate = selectedDate ? getLocalDateFromUTC(selectedDate) : null;
+  
   return (
     <div className="relative">
       <label className="block text-sm font-medium text-gray-700 mb-1">
         {label}
       </label>
       <DatePicker
-        selected={selectedDate}
-        onChange={onChange}
+        selected={normalizedSelectedDate}
+        onChange={handleDateChange}
         dateFormat="dd/MM/yyyy"
-        minDate={minDate}
-        maxDate={maxDate}
+        minDate={minDate ? getLocalDateFromUTC(minDate) : undefined}
+        maxDate={maxDate ? getLocalDateFromUTC(maxDate) : undefined}
         disabled={disabled}
         placeholderText={placeholder}
         className="w-full"
@@ -55,8 +84,8 @@ function CustomDatePicker({
         customInput={<CustomInput />}
         calendarClassName="shadow-lg border-gray-200"
         dayClassName={date =>
-          date.getDate() === selectedDate?.getDate() &&
-          date.getMonth() === selectedDate?.getMonth()
+          date.getDate() === normalizedSelectedDate?.getDate() &&
+          date.getMonth() === normalizedSelectedDate?.getMonth()
             ? "bg-indigo-500 text-white rounded-full hover:bg-indigo-600"
             : undefined
         }

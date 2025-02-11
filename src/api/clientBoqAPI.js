@@ -257,6 +257,21 @@ export const deleteChecklist = async (checklistId) => {
     }
 };
 
+export const getBOQById = async (id) => {
+    try {
+        const response = await axios.get(
+            `${API_BASE_URL}/getoneboq/${id}`,
+            {
+                headers: getAuthHeader()
+            }
+        );
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || error;
+    }
+};
 
-// Helper functions
+
+
+
 
