@@ -7,7 +7,8 @@ import {
     verifyUnitThunk,
     verifyBatchUnitsThunk,
     rejectUnitThunk,
-    rejectBatchUnitsThunk
+    rejectBatchUnitsThunk,
+    clearOperationState
 } from '../../Slices/inventoryModuleSlices/itemCodeUnitSlices';
 
 import {
@@ -32,7 +33,22 @@ function VerifyUnit(props) {
     const { checkContent, onEmpty, onStateChange } = { ...defaultProps, ...props };
 
     const dispatch = useDispatch();
-    const { unitsForVerification, loading, error } = useSelector(state => state.unit);
+    const { unitsForVerification,
+        loading: {
+            verification: isVerificationLoading,
+            verify: isVerifying,
+            reject: isRejecting
+        },
+        errors: {
+            verification: verificationError,
+            verify: verifyError,
+            reject: rejectError
+        },
+        success: {
+            verify: verifySuccess,
+            reject: rejectSuccess
+        }
+    } = useSelector(state => state.unit);
     const userRoleId = useSelector(state => state.auth.userInfo.roleId);
     const [inboxExpanded, setInboxExpanded] = useState(false);
     const [selectedUnit, setSelectedUnit] = useState(null);
@@ -44,7 +60,7 @@ function VerifyUnit(props) {
     // Group units by batch for bulk verification
     const groupedUnits = useMemo(() => {
         if (!unitsForVerification) return [];
-        
+
         const grouped = unitsForVerification.reduce((acc, unit) => {
             if (unit.creationType === 'BULK') {
                 const batchGroup = acc.find(g => g.batchId === unit.batchId);
@@ -67,27 +83,66 @@ function VerifyUnit(props) {
         return grouped;
     }, [unitsForVerification]);
 
-    
+    useEffect(() => {
+        // Clear states on mount
+        dispatch(clearOperationState('verify'));
+        dispatch(clearOperationState('reject'));
+
+        return () => {
+            // Cleanup on unmount
+            dispatch(clearOperationState('verify'));
+            dispatch(clearOperationState('reject'));
+        };
+    }, [dispatch]);
+
+
 
     useEffect(() => {
         if (userRoleId) {
             dispatch(getUnitsForVerificationThunk(userRoleId));
-            
+
         }
     }, [dispatch, userRoleId]);
 
     useEffect(() => {
-        onStateChange(loading, hasContent);
-    }, [loading, hasContent, onStateChange]);
+        onStateChange(hasContent);
+    }, [hasContent, onStateChange]);
+
+    useEffect(() => {
+        if (verifyError) {
+            showToast('error', verifyError);
+        }
+        if (rejectError) {
+            showToast('error', rejectError);
+        }
+    }, [verifyError, rejectError]);
+
+    const closeUnitDetails = useCallback(() => {
+        setSelectedUnit(null);
+        setRemarks('');
+        dispatch(clearOperationState('verify'));
+        dispatch(clearOperationState('reject'));
+    }, [dispatch]);
+
+    useEffect(() => {
+        if (verifySuccess) {
+            showToast('success', 'Unit verified successfully');
+            closeUnitDetails();
+            dispatch(getUnitsForVerificationThunk(userRoleId));
+            dispatch(clearOperationState('verify'));
+        }
+        if (rejectSuccess) {
+            showToast('success', 'Unit rejected successfully');
+            closeUnitDetails();
+            dispatch(getUnitsForVerificationThunk(userRoleId));
+            dispatch(clearOperationState('reject'));
+        }
+    }, [verifySuccess, rejectSuccess, dispatch, userRoleId, closeUnitDetails]);
 
     const openUnitDetails = useCallback((unit) => {
         setSelectedUnit(unit);
     }, []);
 
-    const closeUnitDetails = useCallback(() => {
-        setSelectedUnit(null);
-        setRemarks('');
-    }, []);
 
     const handleVerify = useCallback(async () => {
         if (!remarks.trim()) {
@@ -101,20 +156,17 @@ function VerifyUnit(props) {
                     batchId: selectedUnit.batchId,
                     remarks: remarks
                 })).unwrap();
-                showToast('success', 'Batch units verified successfully');
             } else {
                 await dispatch(verifyUnitThunk({
                     id: selectedUnit._id,
                     remarks: remarks
                 })).unwrap();
-                showToast('success', 'Unit verified successfully');
             }
-            closeUnitDetails();
-            dispatch(getUnitsForVerificationThunk(userRoleId));
         } catch (error) {
-            showToast('error', error.message || 'Failed to verify unit');
+            showToast('error', error?.message || 'Failed to verify unit');
+            dispatch(clearOperationState('verify'));
         }
-    }, [dispatch, selectedUnit, remarks, userRoleId, closeUnitDetails]);
+    }, [dispatch, selectedUnit, remarks]);
 
     const handleReject = useCallback(() => {
         if (!remarks.trim()) {
@@ -126,28 +178,30 @@ function VerifyUnit(props) {
 
     const handleConfirmedReject = useCallback(async () => {
         try {
+
+            console.log('Rejecting unit:', selectedUnit);
+            console.log('Remarks:', remarks);
             if (selectedUnit.creationType === 'BULK') {
                 await dispatch(rejectBatchUnitsThunk({
                     batchId: selectedUnit.batchId,
                     remarks: remarks
                 })).unwrap();
-                showToast('success', 'Batch units rejected successfully');
             } else {
+                console.log('Attempting single unit rejection');
                 await dispatch(rejectUnitThunk({
                     id: selectedUnit._id,
                     remarks: remarks
                 })).unwrap();
-                showToast('success', 'Unit rejected successfully');
             }
-            closeUnitDetails();
-            dispatch(getUnitsForVerificationThunk(userRoleId));
         } catch (error) {
-            showToast('error', error.message || 'Failed to reject unit');
+            showToast('error', error?.message || 'Failed to reject unit');
+            dispatch(clearOperationState('reject'));
+        } finally {
+            setShowRejectDialog(false);
         }
-        setShowRejectDialog(false);
-    }, [dispatch, selectedUnit, remarks, userRoleId, closeUnitDetails]);
+    }, [dispatch, selectedUnit, remarks]);
 
-    if (loading && !unitsForVerification?.length) {
+    if (isVerificationLoading && !unitsForVerification?.length) {
         return (
             <div className="flex justify-center items-center h-screen">
                 <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-indigo-500"></div>
@@ -155,14 +209,14 @@ function VerifyUnit(props) {
         );
     }
 
-    if (error || !hasContent) return null;
+    if (verificationError || !hasContent) return null;
 
     return (
         <>
             <div className="w-full bg-white shadow-md rounded-md overflow-hidden mb-4 mt-4">
                 <div className="p-4 bg-slate-100 flex justify-between items-center">
-                    <div 
-                        className="px-2 py-2 rounded-full bg-slate-300 cursor-pointer" 
+                    <div
+                        className="px-2 py-2 rounded-full bg-slate-300 cursor-pointer"
                         onClick={() => setInboxExpanded(!inboxExpanded)}
                     >
                         <FaChevronDown className={`text-gray-600 font-bold ${inboxExpanded ? 'rotate-180 duration-300' : ''}`} />
@@ -225,7 +279,7 @@ function VerifyUnit(props) {
                                                             />
                                                         </td>
                                                         <td className="border px-4 py-2">
-                                                            <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs">
+                                                            <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-800 text-xs">
                                                                 Single
                                                             </span>
                                                         </td>
@@ -233,11 +287,10 @@ function VerifyUnit(props) {
                                                         <td className="border px-4 py-2">{item.symbol}</td>
                                                         <td className="border px-4 py-2">{item.type}</td>
                                                         <td className="border px-4 py-2">
-                                                            <span className={`px-2 py-1 rounded-full text-xs ${
-                                                                item.baseUnit 
-                                                                    ? 'bg-green-100 text-green-800' 
+                                                            <span className={`px-2 py-1 rounded-full text-xs ${item.baseUnit
+                                                                    ? 'bg-green-100 text-green-800'
                                                                     : 'bg-gray-100 text-gray-800'
-                                                            }`}>
+                                                                }`}>
                                                                 {item.baseUnit ? 'Yes' : 'No'}
                                                             </span>
                                                         </td>
@@ -307,11 +360,10 @@ function VerifyUnit(props) {
                                                             <td className="px-4 py-2 border">{unit.symbol}</td>
                                                             <td className="px-4 py-2 border">{unit.type}</td>
                                                             <td className="px-4 py-2 border text-center">
-                                                                <span className={`px-2 py-1 rounded-full text-xs ${
-                                                                    unit.baseUnit 
-                                                                        ? 'bg-green-100 text-green-800' 
+                                                                <span className={`px-2 py-1 rounded-full text-xs ${unit.baseUnit
+                                                                        ? 'bg-green-100 text-green-800'
                                                                         : 'bg-gray-100 text-gray-800'
-                                                                }`}>
+                                                                    }`}>
                                                                     {unit.baseUnit ? 'Yes' : 'No'}
                                                                 </span>
                                                             </td>
@@ -324,167 +376,167 @@ function VerifyUnit(props) {
                                 </div>
                             ) : (
                                 // Single Unit View
-                              // Single Unit View
-                              <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                              {/* Basic Details */}
-                              <div className="bg-white p-6 rounded-lg shadow-md">
-                                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Basic Details</h4>
-                                  <div className="grid grid-cols-2 gap-4">
-                                      <div className="bg-purple-50 p-4 rounded-lg">
-                                          <p className="text-sm text-gray-600">Name</p>
-                                          <p className="text-lg font-semibold text-purple-700">{selectedUnit.name}</p>
-                                      </div>
-                                      <div className="bg-indigo-50 p-4 rounded-lg">
-                                          <p className="text-sm text-gray-600">Symbol</p>
-                                          <p className="text-lg font-semibold text-indigo-700">{selectedUnit.symbol}</p>
-                                      </div>
-                                      <div className="bg-blue-50 p-4 rounded-lg">
-                                          <p className="text-sm text-gray-600">Type</p>
-                                          <p className="text-lg font-semibold text-blue-700">{selectedUnit.type}</p>
-                                      </div>
-                                      <div className="bg-green-50 p-4 rounded-lg">
-                                          <p className="text-sm text-gray-600">Base Unit</p>
-                                          <p className="text-lg font-semibold text-green-700">
-                                              {selectedUnit.baseUnit ? 'Yes' : 'No'}
-                                          </p>
-                                      </div>
-                                  </div>
-                              </div>
+                                // Single Unit View
+                                <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    {/* Basic Details */}
+                                    <div className="bg-white p-6 rounded-lg shadow-md">
+                                        <h4 className="text-lg font-semibold text-gray-800 mb-4">Basic Details</h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-purple-50 p-4 rounded-lg">
+                                                <p className="text-sm text-gray-600">Name</p>
+                                                <p className="text-lg font-semibold text-purple-700">{selectedUnit.name}</p>
+                                            </div>
+                                            <div className="bg-indigo-50 p-4 rounded-lg">
+                                                <p className="text-sm text-gray-600">Symbol</p>
+                                                <p className="text-lg font-semibold text-indigo-700">{selectedUnit.symbol}</p>
+                                            </div>
+                                            <div className="bg-indigo-50 p-4 rounded-lg">
+                                                <p className="text-sm text-gray-600">Type</p>
+                                                <p className="text-lg font-semibold text-indigo-700">{selectedUnit.type}</p>
+                                            </div>
+                                            <div className="bg-green-50 p-4 rounded-lg">
+                                                <p className="text-sm text-gray-600">Base Unit</p>
+                                                <p className="text-lg font-semibold text-green-700">
+                                                    {selectedUnit.baseUnit ? 'Yes' : 'No'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                              {/* Applicable Types and Categories */}
-                              <div className="bg-white p-6 rounded-lg shadow-md">
-                                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Application Details</h4>
-                                  <div className="space-y-4">
-                                      <div className="bg-gray-50 p-4 rounded-lg">
-                                          <p className="text-sm text-gray-600">Applicable Types</p>
-                                          <div className="flex flex-wrap gap-2 mt-2">
-                                              {selectedUnit.applicableTypes.map((type, index) => (
-                                                  <span key={index} className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm">
-                                                      {type}
-                                                  </span>
-                                              ))}
-                                          </div>
-                                      </div>
-                                      {selectedUnit.serviceCategory && selectedUnit.serviceCategory.length > 0 && (
-                                          <div className="bg-gray-50 p-4 rounded-lg">
-                                              <p className="text-sm text-gray-600">Service Categories</p>
-                                              <div className="flex flex-wrap gap-2 mt-2">
-                                                  {selectedUnit.serviceCategory.map((category, index) => (
-                                                      <span key={index} className="px-3 py-1 rounded-full bg-purple-100 text-purple-800 text-sm">
-                                                          {category}
-                                                      </span>
-                                                  ))}
-                                              </div>
-                                          </div>
-                                      )}
-                                  </div>
-                              </div>
+                                    {/* Applicable Types and Categories */}
+                                    <div className="bg-white p-6 rounded-lg shadow-md">
+                                        <h4 className="text-lg font-semibold text-gray-800 mb-4">Application Details</h4>
+                                        <div className="space-y-4">
+                                            <div className="bg-gray-50 p-4 rounded-lg">
+                                                <p className="text-sm text-gray-600">Applicable Types</p>
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {selectedUnit.applicableTypes.map((type, index) => (
+                                                        <span key={index} className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 text-sm">
+                                                            {type}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            {selectedUnit.serviceCategory && selectedUnit.serviceCategory.length > 0 && (
+                                                <div className="bg-gray-50 p-4 rounded-lg">
+                                                    <p className="text-sm text-gray-600">Service Categories</p>
+                                                    <div className="flex flex-wrap gap-2 mt-2">
+                                                        {selectedUnit.serviceCategory.map((category, index) => (
+                                                            <span key={index} className="px-3 py-1 rounded-full bg-purple-100 text-purple-800 text-sm">
+                                                                {category}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
 
-                              {/* Conversions */}
-                              {selectedUnit.conversions && selectedUnit.conversions.length > 0 && (
-                                  <div className="bg-white p-6 rounded-lg shadow-md col-span-2">
-                                      <h4 className="text-lg font-semibold text-gray-800 mb-4">Unit Conversions</h4>
-                                      <div className="overflow-x-auto">
-                                          <table className="min-w-full">
-                                              <thead>
-                                                  <tr>
-                                                      <th className="px-4 py-2 border">To Unit</th>
-                                                      <th className="px-4 py-2 border">Conversion Factor</th>
-                                                  </tr>
-                                              </thead>
-                                              <tbody>
-                                                  {selectedUnit.conversions.map((conversion, index) => (
-                                                      <tr key={index}>
-                                                          <td className="px-4 py-2 border">{conversion.toUnitSymbol}</td>
-                                                          <td className="px-4 py-2 border">{conversion.factor}</td>
-                                                      </tr>
-                                                  ))}
-                                              </tbody>
-                                          </table>
-                                      </div>
-                                  </div>
-                              )}
-                          </div>
-                      )}
+                                    {/* Conversions */}
+                                    {selectedUnit.conversions && selectedUnit.conversions.length > 0 && (
+                                        <div className="bg-white p-6 rounded-lg shadow-md col-span-2">
+                                            <h4 className="text-lg font-semibold text-gray-800 mb-4">Unit Conversions</h4>
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full">
+                                                    <thead>
+                                                        <tr>
+                                                            <th className="px-4 py-2 border">To Unit</th>
+                                                            <th className="px-4 py-2 border">Conversion Factor</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {selectedUnit.conversions.map((conversion, index) => (
+                                                            <tr key={index}>
+                                                                <td className="px-4 py-2 border">{conversion.toUnitSymbol}</td>
+                                                                <td className="px-4 py-2 border">{conversion.factor}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
-                      {/* Signatures and Remarks Section */}
-                      <div className="mt-6">
-                          <div className="bg-white p-6 rounded-lg shadow-md">
-                              <SignatureAndRemarks
-                                  signatures={selectedUnit.signatureAndRemarks || []}
-                              />
+                            {/* Signatures and Remarks Section */}
+                            <div className="mt-6">
+                                <div className="bg-white p-6 rounded-lg shadow-md">
+                                    <SignatureAndRemarks
+                                        signatures={selectedUnit.signatureAndRemarks || []}
+                                    />
 
-                              <div className="mt-4">
-                                  <label htmlFor="remarks" className="block text-sm font-medium text-gray-700">
-                                      Remarks
-                                  </label>
-                                  <textarea
-                                      id="remarks"
-                                      name="remarks"
-                                      rows="3"
-                                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
-                                      placeholder="Enter your remarks here"
-                                      value={remarks}
-                                      onChange={(e) => setRemarks(e.target.value)}
-                                  ></textarea>
-                              </div>
-                          </div>
-                      </div>
+                                    <div className="mt-4">
+                                        <label htmlFor="remarks" className="block text-sm font-medium text-gray-700">
+                                            Remarks
+                                        </label>
+                                        <textarea
+                                            id="remarks"
+                                            name="remarks"
+                                            rows="3"
+                                            className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
+                                            placeholder="Enter your remarks here"
+                                            value={remarks}
+                                            onChange={(e) => setRemarks(e.target.value)}
+                                        ></textarea>
+                                    </div>
+                                </div>
+                            </div>
 
-                      {/* Action Buttons */}
-                      <div className="mt-6 flex justify-end space-x-4">
-                          <button
-                              onClick={handleVerify}
-                              disabled={loading}
-                              className="px-6 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-base font-medium rounded-md shadow-sm hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                          >
-                              {loading ? 'Processing...' : 'Verify'}
-                          </button>
-                          <button
-                              onClick={handleReject}
-                              disabled={loading}
-                              className="px-6 py-2 bg-red-100 text-red-700 text-base font-medium rounded-md shadow-sm hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                          >
-                              {loading ? 'Processing...' : 'Reject'}
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          </div>
-      )}
+                            {/* Action Buttons */}
+                            <div className="mt-6 flex justify-end space-x-4">
+                                <button
+                                    onClick={handleVerify}
+                                    disabled={isVerifying}
+                                    className="px-6 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-base font-medium rounded-md shadow-sm hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                                >
+                                    {isVerifying ? 'Processing...' : 'Verify'}
+                                </button>
+                                <button
+                                    onClick={handleReject}
+                                    disabled={isRejecting}
+                                    className="px-6 py-2 bg-red-100 text-red-700 text-base font-medium rounded-md shadow-sm hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                                >
+                                    {isRejecting ? 'Processing...' : 'Reject'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
-      {/* Reject Confirmation Dialog */}
-      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-          <AlertDialogContent className="bg-white">
-              <AlertDialogHeader>
-                  <AlertDialogTitle className="text-lg font-semibold text-gray-900">
-                      Confirm Rejection
-                  </AlertDialogTitle>
-                  <AlertDialogDescription className="text-sm text-gray-600">
-                      {selectedUnit?.creationType === 'BULK' 
-                          ? `Are you sure you want to reject all units in batch ${selectedUnit.batchId}?`
-                          : `Are you sure you want to reject unit ${selectedUnit?.symbol}?`
-                      } This action cannot be undone.
-                  </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                  <AlertDialogCancel className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md">
-                      Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                      onClick={handleConfirmedReject}
-                      className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md"
-                  >
-                      {selectedUnit?.creationType === 'BULK' 
-                          ? 'Yes, Reject All Units'
-                          : 'Yes, Reject Unit'
-                      }
-                  </AlertDialogAction>
-              </AlertDialogFooter>
-          </AlertDialogContent>
-      </AlertDialog>
-  </>
-);
+            {/* Reject Confirmation Dialog */}
+            <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+                <AlertDialogContent className="bg-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-lg font-semibold text-gray-900">
+                            Confirm Rejection
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-sm text-gray-600">
+                            {selectedUnit?.creationType === 'BULK'
+                                ? `Are you sure you want to reject all units in batch ${selectedUnit.batchId}?`
+                                : `Are you sure you want to reject unit ${selectedUnit?.symbol}?`
+                            } This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md">
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleConfirmedReject}
+                            className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md"
+                        >
+                            {selectedUnit?.creationType === 'BULK'
+                                ? 'Yes, Reject All Units'
+                                : 'Yes, Reject Unit'
+                            }
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    );
 }
 
 export default React.memo(VerifyUnit);

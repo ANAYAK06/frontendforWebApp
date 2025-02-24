@@ -17,7 +17,7 @@ import {
 import { showToast } from '../../../utilities/toastUtilities';
 import { MATERIAL_CATEGORIES, MATERIAL_MAJOR_GROUPS, ASSET_CATEGORIES } from '../../../constents/materialConstants';
 import { SERVICE_CATEGORIES, SERVICE_MAJOR_GROUPS } from '../../../constents/serviceConstants';
-import {getUnitsByTypeThunk} from '../../../Slices/inventoryModuleSlices/itemCodeUnitSlices'
+import {getUnitsByCategoryThunk} from '../../../Slices/inventoryModuleSlices/itemCodeUnitSlices'
 
 const BaseCodeForm = ({ itemType, onBack }) => {
 
@@ -40,9 +40,9 @@ const BaseCodeForm = ({ itemType, onBack }) => {
         }
     } = useSelector((state) => state.itemCode);
     const { 
-        unitsByType,
-        loading: unitLoading,
-        error: unitError 
+        unitsByCategory,
+        loading: { fetchByCategory: unitLoading },
+        errors: { fetchByCategory: unitError }
     } = useSelector((state) => state.unit);
  
     const { approvedHSNCodes } = useSelector((state) => state.hsnsac)
@@ -74,6 +74,32 @@ const BaseCodeForm = ({ itemType, onBack }) => {
         return itemType === 'MATERIAL' ? MATERIAL_MAJOR_GROUPS : SERVICE_MAJOR_GROUPS;
     }, [itemType]);
 
+   useEffect(()=>{
+    dispatch(getUnitsByCategoryThunk(itemType))
+   },[dispatch,itemType])
+
+    const getUnits = useCallback(() => {
+        return unitsByCategory || [];
+    }, [unitsByCategory]);
+
+    useEffect(() => {
+        if (unitLoading) {
+            console.log('Loading units...');
+        }
+        if (unitError) {
+            console.log('Unit error:', unitError);
+        }
+        if (unitsByCategory?.length > 0) {
+            console.log('Units loaded:', unitsByCategory);
+        }
+    }, [unitLoading, unitError, unitsByCategory]);
+
+
+    useEffect(() => {
+        console.log('unitsByCategory state:', unitsByCategory);
+        console.log('getUnits result:', getUnits());
+    }, [unitsByCategory, getUnits]);
+
 
     useEffect(() => {
         if (itemType === 'MATERIAL' && formData.categoryCode) {
@@ -92,25 +118,17 @@ const BaseCodeForm = ({ itemType, onBack }) => {
        
     }, [dispatch]);
 
-    useEffect(() => {
-        if (itemType) {
-            dispatch(getUnitsByTypeThunk({ 
-                type: itemType,
-                excludeUnit: null // Pass null or the unit to exclude if needed
-            }));
-        }
-    }, [dispatch, itemType]);
+  
 
-    const getUnits = useCallback(() => {
-        return unitsByType || [];
-    }, [unitsByType]);
+   
 
 
     useEffect(() => {
         if (error) showToast('error', error);
         if (dcaError) showToast('error', dcaError);
         if (subDcaError) showToast('error', subDcaError);
-    }, [error, dcaError, subDcaError]);
+        
+    }, [error, dcaError, subDcaError, unitError]);
 
     useEffect(() => {
         if (createSuccess) {
@@ -162,11 +180,11 @@ const BaseCodeForm = ({ itemType, onBack }) => {
             })).unwrap();
 
             if (!error) {
-                showToast('success', 'Base code created successfully');
+                
                 setFormData(initialFormState);
             }
         } catch (err) {
-            showToast('error', err.message || 'Failed to create base code');
+            console.error('Base code creation failed:', err);
         }
     };
 
@@ -292,7 +310,8 @@ const BaseCodeForm = ({ itemType, onBack }) => {
                                 <option value="">
                                 {unitLoading ? 'Loading Units...' : 'Select Unit'}
                                 </option>
-                               {Array.isArray(getUnits()) && getUnits().map(unit => (
+                                {unitError && <option disabled>{unitError}</option>}
+                               {!unitLoading && Array.isArray(getUnits()) && getUnits().map(unit => (
                                     <option key={unit._id} value={unit.symbol}
                                     className={unit.baseUnit ? 'font-semibold text-indigo-600' : ''}>
                                         {unit.symbol} - {unit.name}
@@ -318,7 +337,7 @@ const BaseCodeForm = ({ itemType, onBack }) => {
                                 {approvedHSNCodes
                                     .filter(hsn => hsn.applicableType === itemType || hsn.applicableType === 'BOTH')
                                     .map(hsn => (
-                                        <option key={hsn._id} value={hsn._id}>
+                                        <option key={hsn._id} value={hsn.code}>
                                             {hsn.code} - {hsn.description}
                                             ({hsn.taxRateHistory && hsn.taxRateHistory.length > 0 ?
                                              `GST: ${hsn.taxRateHistory

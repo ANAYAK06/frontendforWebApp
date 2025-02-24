@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Card, CardContent, CardHeader, CardTitle } from '../../Components/Card';
-import { FaFileUpload, FaPencilAlt, FaDownload, FaInfoCircle, FaPlus, FaTrash } from "react-icons/fa";
+import { FaFileUpload, FaPencilAlt, FaDownload, FaInfoCircle } from "react-icons/fa";
 import {
     createUnitThunk,
     bulkUploadUnitsThunk,
-    getUnitsByTypeThunk
+    getUnitsByTypeThunk,
+    clearOperationState
 } from '../../Slices/inventoryModuleSlices/itemCodeUnitSlices';
 import {
     AlertDialog,
@@ -20,11 +21,28 @@ import {
 import { showToast } from '../../utilities/toastUtilities';
 import { UNIT_TYPES } from '../../constents/unitConstants';
 import * as XLSX from 'xlsx';
-import ConversionHelper from './ConversionHelper';
+import UnitConversionSection from './Unit/UnitConversionSection';
 
 const UnitCreation = () => {
     const dispatch = useDispatch();
-    const { loading, error, createSuccess, bulkUploadSuccess, unitsByType } = useSelector((state) => state.unit);
+    const {
+        loading: {
+            create: isCreating,
+            bulkUpload: isUploading,
+            fetchbyType: isFetchingTypes
+        },
+        errors: {
+            create: createError,
+            bulkUpload: uploadError,
+            fetchbyType: typeError
+        },
+        success: {
+            create: createSuccess,
+            bulkUpload: bulkUploadSuccess
+        },
+        unitsByType
+
+    } = useSelector((state) => state.unit);
 
     const [mode, setMode] = useState(null);
     const [showResetDialog, setShowResetDialog] = useState(false);
@@ -53,40 +71,64 @@ const UnitCreation = () => {
         setIsFormDirty(false);
         setShowResetDialog(false);
         setMode(null);
-    }, [initialFormState]);
-
-
-    // Effects
-    useEffect(() => {
-        if (error) {
-            showToast('error', error);
-        }
-    }, [error]);
+        dispatch(clearOperationState('create'));
+        dispatch(clearOperationState('bulkUpload'));
+    }, [initialFormState, dispatch]);
 
     useEffect(() => {
-        if (formData.type) {
-            dispatch(getUnitsByTypeThunk({ 
-                type: formData.type,
-                excludeUnit: formData.symbol 
-            }));
+        if (createError) {
+            showToast('error', createError);
+            dispatch(clearOperationState('create'));
         }
-    }, [formData.type, formData.symbol, dispatch]);
+        if (uploadError) {
+            showToast('error', uploadError);
+            dispatch(clearOperationState('bulkUpload'));
+        }
+        if (typeError) {
+            showToast('error', typeError);
+            dispatch(clearOperationState('fetchByType'));
+        }
+    }, [createError, uploadError, typeError, dispatch]);
 
+    // Success handling effect
     useEffect(() => {
         if (createSuccess) {
             showToast('success', 'Unit created successfully');
             handleResetForm();
         }
-    }, [createSuccess, handleResetForm]);
-
-    useEffect(() => {
         if (bulkUploadSuccess) {
             showToast('success', 'Units uploaded successfully');
             handleResetForm();
         }
-    }, [bulkUploadSuccess, handleResetForm]);
+    }, [createSuccess, bulkUploadSuccess, handleResetForm]);
 
-    // Handlers
+    useEffect(() => {
+        if (formData.type) {
+            dispatch(getUnitsByTypeThunk({
+                type: formData.type,
+                excludeUnit: formData.symbol
+            }));
+        }
+    }, [formData.type, formData.symbol, dispatch]);
+
+    // Cleanup effect
+    useEffect(() => {
+        return () => {
+            dispatch(clearOperationState('create'));
+            dispatch(clearOperationState('bulkUpload'));
+            dispatch(clearOperationState('fetchByType'));
+        };
+    }, [dispatch]);
+
+
+   
+
+    const availableUnits = useMemo(() => {
+        if (!unitsByType) return [];
+        return unitsByType;
+    }, [unitsByType]);
+    
+
 
     const handleChange = useCallback((e) => {
         const { name, value, type, checked } = e.target;
@@ -96,16 +138,44 @@ const UnitCreation = () => {
         }));
         setIsFormDirty(true);
     }, []);
-
-    const handleConversionChange = useCallback((index, field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            conversions: prev.conversions.map((conv, i) =>
-                i === index ? { ...conv, [field]: value } : conv
-            )
-        }));
+    const handleConversionChange = useCallback((index, field, value, updatedConversions = null) => {
+        console.log('Conversion change:', { index, field, value, updatedConversions });
+        
+        setFormData(prev => {
+            // Handle deletion
+            if (field === 'delete' && updatedConversions) {
+                return {
+                    ...prev,
+                    conversions: updatedConversions
+                };
+            }
+            
+            // Handle unit selection or factor update
+            const newConversions = prev.conversions.map((conv, i) => {
+                if (i === index) {
+                    if (field === 'toUnitSymbol') {
+                        const selectedUnit = unitsByType.find(u => u.symbol === value);
+                        if (!selectedUnit) return conv;
+                        return {    
+                            ...conv,
+                            toUnitSymbol: selectedUnit.symbol,
+                            toUnitName: selectedUnit.name,
+                            toUnit: selectedUnit._id,
+                            factor: conv.factor || ''
+                        };
+                    }
+                    return { ...conv, [field]: value };
+                }
+                return conv;
+            });
+            
+            return {
+                ...prev,
+                conversions: newConversions
+            };
+        });
         setIsFormDirty(true);
-    }, []);
+    }, [unitsByType]);
 
     const handleExcelUpload = useCallback((e) => {
         const file = e.target.files[0];
@@ -155,6 +225,7 @@ const UnitCreation = () => {
             applicableTypes: formData.applicableTypes || ['MATERIAL'],
             serviceCategory: formData.serviceCategory || [],
             conversions: formData.conversions.map(conv => ({
+                toUnit: conv.toUnit,         
                 toUnitSymbol: conv.toUnitSymbol.toUpperCase(),
                 factor: parseFloat(conv.factor)
             })),
@@ -168,6 +239,20 @@ const UnitCreation = () => {
             console.error('Failed to create unit:', err);
         }
     }, [dispatch, formData]);
+
+    const handleAddConversion = () => {
+        setFormData(prev => ({
+            ...prev,
+            conversions: [
+                ...prev.conversions,
+                {
+                    toUnitSymbol: '',     
+                    toUnitName: '',       
+                    factor: '',          
+                }
+            ]
+        }));
+    };
 
     return (
         <div className="container mx-auto p-4 space-y-6">
@@ -347,104 +432,21 @@ const UnitCreation = () => {
                                 {/* Conversions */}
                                 {/* Inside your form's conversion section */}
                                 <div className="border-t pt-4">
-                                    <h3 className="font-medium mb-4">Unit Conversions</h3>
-                                    <div className="space-y-4">
-                                        {formData.conversions.map((conv, idx) => (
-                                            <div key={idx} className="grid grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-white relative group">
-                                                {/* To Unit Symbol */}
-                                                <div className="col-span-5">
-                                                    <label className="block text-sm font-medium mb-1">
-                                                        To Unit 
-                                                        <span className="text-xs text-gray-500 ml-1">(Select Target unit)</span>
-                                                    </label>
-                                                    <select
-                                value={conv.toUnitSymbol}
-                                onChange={(e) => handleConversionChange(idx, 'toUnitSymbol', e.target.value)}
-                                className="w-full p-2 border rounded"
-                                required
-                                disabled={!formData.type}
-                            >
-                                <option value="">Select Unit</option>
-                                {unitsByType.map(unit => (
-                                    <option 
-                                        key={unit._id} 
-                                        value={unit.symbol}
-                                        disabled={unit.symbol === formData.symbol}
-                                    >
-                                        {unit.name} ({unit.symbol}) {unit.baseUnit ? '- Base Unit' : ''}
-                                    </option>
-                                ))}
-                            </select>
-                            {!formData.type && (
-                                <p className="text-xs text-amber-600 mt-1">
-                                    Please select a unit type first
-                                </p>
-                            )}
-                                                </div>
-
-                                                {/* Conversion Factor */}
-                                                <div className="col-span-5">
-                                                    <label className="block text-sm font-medium mb-1">
-                                                        Conversion Factor
-                                                        <span className="text-xs text-gray-500 ml-1">(e.g., 0.001 for KG to MT)</span>
-                                                    </label>
-                                                    <input
-                                                        type="number"
-                                                        step="0.000001"
-                                                        value={conv.factor}
-                                                        onChange={(e) => handleConversionChange(idx, 'factor', e.target.value)}
-                                                        className="w-full p-2 border rounded"
-                                                        required
-                                                    />
-                                                </div>
-
-                                                {/* Delete Icon */}
-                                                <div className="col-span-2 flex justify-center">
-                                                    <div
-                                                        onClick={() => {
-                                                            setFormData(prev => ({
-                                                                ...prev,
-                                                                conversions: prev.conversions.filter((_, i) => i !== idx)
-                                                            }));
-                                                        }}
-                                                        className="cursor-pointer p-2 text-gray-400 hover:text-red-600 transition-colors duration-200 h-10 w-10 flex items-center justify-center rounded-full hover:bg-red-50"
-                                                        title="Delete conversion"
-                                                    >
-                                                        <FaTrash />
-                                                    </div>
-                                                </div>
-
-                                                {/* Optional: Preview Component */}
-                                                <div className="col-span-12">
-                                                    <ConversionHelper
-                                                        baseUnit={formData.symbol}
-                                                        targetUnit={conv.toUnitSymbol}
-                                                        factor={parseFloat(conv.factor)}
-                                                    >
-                                                        <div className="text-xs text-indigo-600 mt-1">
-                                                            <span className="font-medium">Note:</span> For {formData.symbol} to {conv.toUnitSymbol},
-                                                            use {parseFloat(conv.factor)} as the factor.
-                                                            (Example: 1000 {formData.symbol} = {1000 * parseFloat(conv.factor)} {conv.toUnitSymbol})
-                                                        </div>
-                                                    </ConversionHelper>
-                                                </div>
-                                            </div>
-                                        ))}
-
-                                        {/* Add Conversion Button */}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setFormData(prev => ({
-                                                    ...prev,
-                                                    conversions: [...prev.conversions, { toUnitSymbol: '', factor: '' }]
-                                                }));
-                                            }}
-                                            className="w-full p-3 border-2 border-dashed rounded-lg text-gray-600 hover:border-indigo-500 hover:text-indigo-500 flex items-center justify-center"
-                                        >
-                                            <FaPlus className="mr-2" /> Add Conversion
-                                        </button>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="font-medium">Unit Conversions</h3>
+                                        <div className="text-sm text-gray-500 flex items-center">
+                                            <FaInfoCircle className="mr-2" />
+                                            Add conversion factors for unit relationships
+                                        </div>
                                     </div>
+                                    
+                                    <UnitConversionSection
+                                        formData={formData}
+                                        handleConversionChange={handleConversionChange}
+                                        handleAddConversion={handleAddConversion}
+                                        availableUnits={availableUnits}
+                                        isFetchingTypes={isFetchingTypes}
+                                        />
                                 </div>
                                 {/* Remarks */}
                                 <div className="border-t pt-4">
@@ -465,16 +467,16 @@ const UnitCreation = () => {
                                         type="button"
                                         onClick={() => isFormDirty && setShowResetDialog(true)}
                                         className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                                        disabled={loading}
+                                        disabled={isCreating}
                                     >
                                         Reset
                                     </button>
                                     <button
                                         type="submit"
                                         className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                                        disabled={loading}
+                                        disabled={isCreating}
                                     >
-                                        {loading ? 'Creating...' : 'Create Unit'}
+                                        {isCreating ? 'Creating...' : 'Create Unit'}
                                     </button>
                                 </div>
                             </div>
@@ -531,7 +533,7 @@ const UnitCreation = () => {
                                     type="button"
                                     onClick={handleResetForm}
                                     className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                                    disabled={loading}
+                                    disabled={isUploading}
                                 >
                                     Reset
                                 </button>
@@ -546,9 +548,9 @@ const UnitCreation = () => {
                                         }
                                     }}
                                     className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                                    disabled={loading || !excelFile}
+                                    disabled={isUploading || !excelFile}
                                 >
-                                    {loading ? 'Uploading...' : 'Upload Units'}
+                                    {isUploading ? 'Uploading...' : 'Upload Units'}
                                 </button>
                             </div>
 
@@ -598,7 +600,7 @@ const UnitCreation = () => {
             </AlertDialog>
 
             {/* Loading Overlay */}
-            {loading && (
+            {isCreating && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white p-5 rounded-lg flex items-center space-x-3">
                         <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>

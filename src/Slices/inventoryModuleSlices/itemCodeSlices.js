@@ -5,11 +5,28 @@ import * as itemCodeAPI from '../../api/InventoryModuleAPI/itemCodeAPI';
 // Base Code Async Thunks
 export const createBaseCode = createAsyncThunk(
     'itemCode/createBaseCode',
-    async (data, { rejectWithValue }) => {
+    async ({ formData, isExcelUpload }, { rejectWithValue }) => {
         try {
-            const response = await itemCodeAPI.createBaseCode(data.formData, data.isExcelUpload);
-            return response.data;
+            // Ensure data format matches backend expectations
+            const requestData = isExcelUpload ? {
+                isExcelUpload: 'true',
+                data: formData.data,  // This is already stringified
+                remarks: formData.remarks,
+                type: formData.type
+            } : formData;
+
+            const response = await itemCodeAPI.createBaseCode(requestData, isExcelUpload);
+            
+            if (response.success) {
+                return response;
+               
+            } else {
+                return rejectWithValue(response.error || 'Operation failed');
+            }
         } catch (error) {
+            if (error.response?.data?.error) {
+                return rejectWithValue(error.response.data.error);
+            }
             return rejectWithValue(error.message || 'Failed to create base code');
         }
     }
@@ -78,11 +95,29 @@ export const rejectBaseCode = createAsyncThunk(
 // Specification Async Thunks
 export const createSpecification = createAsyncThunk(
     'itemCode/createSpecification',
-    async ({ itemCodeId, data, isBulk }, { rejectWithValue }) => {
+    async ({ formData, isExcelUpload }, { rejectWithValue }) => {
         try {
-            const response = await itemCodeAPI.createSpecification(itemCodeId, data, isBulk);
-            return response.data;
+            // Ensure data format matches backend expectations
+            const requestData = isExcelUpload ? {
+                isExcelUpload: 'true',
+                data: formData.data,  // This is already stringified data from Excel
+                remarks: formData.remarks
+            } : {
+                ...formData,
+                isExcelUpload: 'false'
+            };
+
+            const response = await itemCodeAPI.createSpecification(requestData, isExcelUpload);
+            
+            if (response.success) {
+                return response;
+            } else {
+                return rejectWithValue(response.error || 'Operation failed');
+            }
         } catch (error) {
+            if (error.response?.data?.error) {
+                return rejectWithValue(error.response.data.error);
+            }
             return rejectWithValue(error.message || 'Failed to create specification');
         }
     }
@@ -104,9 +139,13 @@ export const getSpecificationsForVerification = createAsyncThunk(
     'itemCode/getSpecificationsForVerification',
     async ({ userRoleId, type }, { rejectWithValue }) => {
         try {
+            console.log('Calling API with:', { userRoleId, type });
             const response = await itemCodeAPI.getSpecificationsForVerification(userRoleId, type);
-            return response.data;
+            console.log('API Response for specifications:', response);
+            console.log('Actual data being returned:', response.data);
+            return response;
         } catch (error) {
+            console.error('Error fetching specifications:', error);
             return rejectWithValue(error.message || 'Failed to fetch specifications for verification');
         }
     }
@@ -199,7 +238,7 @@ const initialState = {
     baseCodesForVerification: [],
     selectedBaseCode: null,
     
-    // Specification states
+    // Specification statesa
     specifications: [],
     specificationsForVerification: [],
     selectedSpecification: null,
@@ -445,16 +484,16 @@ const itemCodeSlice = createSlice({
             .addCase(getSpecificationsForVerification.pending, (state) => {
                 state.loading.specificationVerification = true;
                 state.error.specificationVerification = null;
+                state.specificationsForVerification =[]
             })
             .addCase(getSpecificationsForVerification.fulfilled, (state, action) => {
                 state.loading.specificationVerification = false;
-                if (action.payload.specifications) {
-                    // If type is 'bulk', payload contains grouped specifications
-                    if (typeof action.payload.specifications === 'object' && !Array.isArray(action.payload.specifications)) {
-                        state.specificationsForVerification = Object.values(action.payload.specifications).flat();
-                    } else {
-                        state.specificationsForVerification = action.payload.specifications;
-                    }
+                if (Array.isArray(action.payload)) {
+                    state.specificationsForVerification = action.payload;
+                } else if (action.payload && action.payload.specifications) {
+                    state.specificationsForVerification = action.payload.specifications;
+                } else {
+                    state.specificationsForVerification = [];
                 }
             })
             .addCase(getSpecificationsForVerification.rejected, (state, action) => {

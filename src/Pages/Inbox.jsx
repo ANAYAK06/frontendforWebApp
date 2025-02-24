@@ -19,113 +19,119 @@ import VerifyClientBOQ from './Projects/VerifyClientBOQ';
 import VerifyClient from './Accounts/VerifyClient';
 import VerifySubClient from './Accounts/VerifySubClient';
 import VerifyBaseCode from './Inventory/ItemCode/VerifyBaseCode';
+import VerifySpecification from './Inventory/ItemCode/VerifySpecification';
 
 // Base components - these work independently of CCID
 const baseComponents = [
-  { 
-    Component: VerifyNewCC, 
+  {
+    Component: VerifyNewCC,
     key: 'newCC',
   },
-  { 
-    Component: VerifyLedger, 
+  {
+    Component: VerifyLedger,
     key: 'ledgerVerification',
   },
-  { 
-    Component: VerifyGroups, 
+  {
+    Component: VerifyGroups,
     key: 'groupVerification',
   },
-  { 
-    Component: VerifyBankAccount, 
+  {
+    Component: VerifyBankAccount,
     key: 'bankVerification',
   },
-  { 
-    Component: VerifyLoan, 
+  {
+    Component: VerifyLoan,
     key: 'loanVerification',
   },
-  { 
-    Component: VerifyFixedDeposit, 
+  {
+    Component: VerifyFixedDeposit,
     key: 'fdVerification',
   },
-  { 
-    Component: VerifyTdsAccount, 
+  {
+    Component: VerifyTdsAccount,
     key: 'tdsVerification',
   },
-  { 
-    Component:VerifyBusinessOppertunity, 
+  {
+    Component: VerifyBusinessOppertunity,
     key: 'oppertunityverification',
   },
-  { 
-    Component:VerifyBOQ, 
+  {
+    Component: VerifyBOQ,
     key: 'boqverification',
   },
-  { 
-    Component:VerifyRevision, 
+  {
+    Component: VerifyRevision,
     key: 'boqrevisionverification',
   },
-  { 
-    Component:VerifyTenderFinalStatus, 
+  {
+    Component: VerifyTenderFinalStatus,
     key: 'tenderfinalstatus',
   },
-  { 
-    Component:VerifyHSNCode, 
+  {
+    Component: VerifyHSNCode,
     key: 'hsncodeverification',
   },
-  { 
-    Component:VerifyUnit, 
+  {
+    Component: VerifyUnit,
     key: 'unitverification',
   },
-  { 
-    Component:VerifyClientBOQ, 
+  {
+    Component: VerifyClientBOQ,
     key: 'clientboqverification',
   },
-  { 
-    Component:VerifyClient, 
+  {
+    Component: VerifyClient,
     key: 'clientverification',
   },
   {
     Component: VerifySubClient,
     key: 'subclientverification',
   },
- {
-  Component: VerifyBaseCode,
-  key:'basecodeverification',
+  {
+    Component: VerifyBaseCode,
+    key: 'basecodeverification',
 
- }
- 
-  
+  },
+  {
+    Component: VerifySpecification,
+    key: 'specificationverification',
+  }
+
+
+
 
 ];
 
 // Budget components - these depend on CCID
 const budgetComponents = {
   performing: [
-    { 
-      Component: CCBudgetVerification, 
+    {
+      Component: CCBudgetVerification,
       key: 'performingCCBudget',
-      props: { 
+      props: {
         budgetType: 'performing',
       }
     },
-    { 
-      Component: VerifyDcaBudget, 
+    {
+      Component: VerifyDcaBudget,
       key: 'performingDCABudget',
-      props: { 
+      props: {
         budgetType: 'performing',
       }
     }
   ],
   nonperforming: [
-    { 
-      Component: CCBudgetVerification, 
+    {
+      Component: CCBudgetVerification,
       key: 'npccBudget',
-      props: { 
+      props: {
         budgetType: 'nonperforming',
       }
     },
-    { 
-      Component: VerifyDcaBudget, 
+    {
+      Component: VerifyDcaBudget,
       key: 'nonperformingDCABudget',
-      props: { 
+      props: {
         budgetType: 'nonperforming',
       }
     }
@@ -134,14 +140,14 @@ const budgetComponents = {
     {
       Component: CCBudgetVerification,
       key: 'capitalCCBudget',
-      props: { 
+      props: {
         budgetType: 'capital',
       }
     },
-    { 
-      Component: VerifyDcaBudget, 
+    {
+      Component: VerifyDcaBudget,
       key: 'capitalDCABudget',
-      props: { 
+      props: {
         budgetType: 'capital',
       }
     }
@@ -170,11 +176,11 @@ function Inbox() {
     });
 
     const typeFromCCID = CCID_TYPE_MAP[ccid];
-    
+
     if (!typeFromCCID || typeFromCCID === activeBudgetType) return;
 
     setActiveBudgetType(typeFromCCID);
-    
+
     // Update budget components based on CCID
     const newBudgetComponents = (budgetComponents[typeFromCCID] || []).map(comp => ({
       ...comp,
@@ -188,7 +194,7 @@ function Inbox() {
       }
     }));
 
-    
+
     setBudgetComponentsToRender(newBudgetComponents);
   }, [activeBudgetType]);
 
@@ -199,7 +205,7 @@ function Inbox() {
       isLoading,
       hasContent
     });
-    
+
     setComponentStates(prev => {
       const newState = { ...prev[key], isLoading, hasContent };
       if (JSON.stringify(prev[key]) !== JSON.stringify(newState)) {
@@ -217,15 +223,15 @@ function Inbox() {
   // Handle component removal
   const handleRemoveComponent = useCallback((keyToRemove) => {
     console.log('Removing component:', keyToRemove);
-    
+
     // Check if it's a budget component
     if (keyToRemove.includes('CCBudget') || keyToRemove.includes('DCABudget')) {
-      setBudgetComponentsToRender(prev => 
+      setBudgetComponentsToRender(prev =>
         prev.filter(item => item.key !== keyToRemove)
       );
     } else {
       // Handle base component removal
-      setBaseComponentsToRender(prev => 
+      setBaseComponentsToRender(prev =>
         prev.filter(item => item.key !== keyToRemove)
       );
     }
@@ -240,7 +246,7 @@ function Inbox() {
   // Initialize components
   useEffect(() => {
     console.log('Initializing components...');
-    
+
     // Initialize base components
     const initialBaseComponents = baseComponents.map(comp => ({
       ...comp,
@@ -276,14 +282,14 @@ function Inbox() {
 
     setBaseComponentsToRender(initialBaseComponents);
     setBudgetComponentsToRender(initialBudgetComponents);
-    
+
     // Initialize states for all components
     const initialStates = [...initialBaseComponents, ...initialBudgetComponents]
       .reduce((acc, { key }) => {
         acc[key] = { isLoading: true, hasContent: false };
         return acc;
       }, {});
-    
+
     setComponentStates(initialStates);
     setIsLoading(false);
 
@@ -340,7 +346,7 @@ function Inbox() {
                 {...props}
                 checkContent={true}
                 onEmpty={() => handleRemoveComponent(key)}
-                onStateChange={(isLoading, hasContent) => 
+                onStateChange={(isLoading, hasContent) =>
                   handleComponentState(key, isLoading, hasContent)
                 }
               />

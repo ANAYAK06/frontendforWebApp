@@ -30,11 +30,14 @@ export const createUnit = async (unitData) => {
             message: error.message
         });
         if (error.response) {
-            throw error.response.data;
+            throw new Error(
+                error.response.data.message || 
+                JSON.stringify(error.response.data)
+            ) 
         } else if (error.request) {
-            throw { message: 'No response from server' };
+            throw new Error('No response received from server');
         } else {
-            throw { message: error.message };
+            throw new Error(error.message);
         }
     }
 };
@@ -105,19 +108,21 @@ export const verifyBatchUnits = async (batchId, remarks) => {
     }
 };
 
-// Reject single unit
+
+
+
 export const rejectUnit = async (id, remarks) => {
     try {
         const response = await axios.put(
-            `${API_BASE_URL}/reject/${id}`,
-            { remarks },
+            `${API_BASE_URL}/reject`,
+            { id, remarks },
             {
                 headers: getAuthHeader(),
             }
         );
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        throw new Error(error.response?.data?.message || 'Failed to reject unit');
     }
 };
 
@@ -125,18 +130,18 @@ export const rejectUnit = async (id, remarks) => {
 export const rejectBatchUnits = async (batchId, remarks) => {
     try {
         const response = await axios.put(
-            `${API_BASE_URL}/reject/batch/${batchId}`,
-            { remarks },
+            `${API_BASE_URL}/reject`,
+            { batchId, remarks },
             {
                 headers: getAuthHeader(),
             }
         );
         return response.data;
     } catch (error) {
-        throw error.response.data;
+        throw new Error(error.response?.data?.message || 'Failed to reject batch units');
     }
 };
-
+;
 // Get all units
 export const getAllUnits = async () => {
     try {
@@ -255,3 +260,67 @@ export const getUnitConversions = async (unitSymbol) => {
     }
 };
 
+export const getUnitsByCategory = async (category) => {
+    try {
+        console.log('Fetching units for category:', category);
+        
+        const response = await axios.get(
+            `${API_BASE_URL}/unit/${category}`,
+            {
+                headers: getAuthHeader()
+            }
+        );
+
+        console.log('Units by category response:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching units by category:', {
+            category,
+            error: error.response?.data || error.message
+        });
+        
+        if (error.response) {
+            throw new Error(
+                error.response.data.message || 
+                JSON.stringify(error.response.data)
+            );
+        } else if (error.request) {
+            throw new Error('No response received from server');
+        } else {
+            throw new Error(error.message || 'An unknown error occurred');
+        }
+    }
+};
+
+// Get allowed units based on primary unit
+export const getAllowedUnitsByPrimaryUnit = async (primaryUnit) => {
+    try {
+        console.log('Fetching allowed units for primary unit:', primaryUnit);
+        
+        const response = await axios.get(
+            `${API_BASE_URL}/allowed/${primaryUnit}`,
+            {
+                headers: getAuthHeader()
+            }
+        );
+
+        console.log('Allowed units response:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Error fetching allowed units:', {
+            primaryUnit,
+            error: error.response?.data || error.message
+        });
+        
+        if (error.response) {
+            throw new Error(
+                error.response.data.message || 
+                JSON.stringify(error.response.data)
+            );
+        } else if (error.request) {
+            throw new Error('No response received from server');
+        } else {
+            throw new Error('Failed to fetch allowed units');
+        }
+    }
+};

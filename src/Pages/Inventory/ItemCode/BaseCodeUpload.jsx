@@ -17,182 +17,192 @@ const BaseCodeUpload = ({ itemType, onBack }) => {
 } = useSelector(state => state.itemCode);
 const [remarks, setRemarks] = useState('')
 
-    const requiredColumns = [
-        'Type', 'Category Code', 'Major Group Code', 
-        'Item Name', 'Primary Unit', 'HSN/SAC Code',
-        'DCA Code', 'Sub DCA Code'
-    ];
-    const downloadTemplate = () => {
-        const template = {
-            'type': 'MATERIAL',
-            'categoryCode': '3',
-            'majorGroupCode': 'OC',
-            'itemName': 'HAND GLOVES',
-            'primaryUnit': 'PCS',
-            'hsnSac': '85365020',
-            'dcaCode': 'DCA-11',
-            'subDcaCode': 'SDCA-11.1',
-            'isAsset': 'No',
-            'assetCategory': ''
-        };
-    
-        const ws = XLSX.utils.json_to_sheet([template]);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Base Code Template');
-        XLSX.writeFile(wb, 'base_code_template.xlsx');
-    };
-    
-    const validateRow = (row) => {
-        const requiredFields = [
-            'type',
-            'categoryCode',
-            'majorGroupCode',
-            'itemName',
-            'primaryUnit',
-            'hsnSac',
-            'dcaCode',
-            'subDcaCode'
-        ];
-        
-        const errors = [];
-        requiredFields.forEach(field => {
-            if (!row[field]?.trim()) {
-                errors.push(`${field} is required`);
-            }
-        });
-        return errors;
+
+const requiredColumns = [
+    'Type', 'Category Code', 'Major Group Code', 
+    'Item Name', 'Primary Unit', 'HSN/SAC',
+    'DCA Code', 'Sub DCA Code'
+];
+
+const downloadTemplate = () => {
+    const template = {
+        'Type': 'MATERIAL',
+        'Category Code': '3',
+        'Major Group Code': 'OC',
+        'Item Name': 'HAND GLOVES',
+        'Primary Unit': 'PCS',
+        'HSN/SAC': '85365020',
+        'DCA Code': 'DCA-11',
+        'Sub DCA Code': 'SDCA-11.1',
+        'Is Asset': 'No',
+        'Asset Category': ''
     };
 
-    
-    const validateHeaders = (headers) => {
-        const missingColumns = requiredColumns.filter(col => 
-            !headers.find(header => header.trim().toLowerCase() === col.toLowerCase())
-        );
-        setErrors(missingColumns);
-        return missingColumns.length === 0;
-    };
+    const ws = XLSX.utils.json_to_sheet([template]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Base Code Template');
+    XLSX.writeFile(wb, 'base_code_template.xlsx');
+};
 
-    const parseExcel = async (buffer) => {
-        try {
-            const workbook = XLSX.read(buffer, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            const rawData = XLSX.utils.sheet_to_json(worksheet);
-            
-            // Map the data using exact field names from DB schema
-            const mappedData = rawData.map(row => ({
-                type: row['type']?.toString().trim() || '',
-                categoryCode: row['categoryCode']?.toString().trim() || '',
-                majorGroupCode: row['majorGroupCode']?.toString().trim() || '',
-                itemName: row['itemName']?.toString().trim() || '',
-                primaryUnit: row['primaryUnit']?.toString().trim() || '',
-                hsnSac: row['hsnSac']?.toString().trim() || '',
-                dcaCode: row['dcaCode']?.toString().trim() || '',
-                subDcaCode: row['subDcaCode']?.toString().trim() || '',
-                isAsset: row['isAsset']?.toString().toLowerCase() === 'yes',
-                assetCategory: row['assetCategory']?.toString().trim() || ''
-            }));
-    
-            // Validate required fields
-            const rowErrors = [];
-            mappedData.forEach((row, index) => {
-                const errors = validateRow(row);
-                if (errors.length > 0) {
-                    rowErrors.push({ row: index + 2, errors });
-                }
-            });
-    
-            if (rowErrors.length > 0) {
-                setErrors(rowErrors);
-                return null;
-            }
-    
-            return {
-                headers: [
-                    'type',
-                    'categoryCode',
-                    'majorGroupCode',
-                    'itemName',
-                    'primaryUnit',
-                    'hsnSac',
-                    'dcaCode',
-                    'subDcaCode',
-                    'isAsset',
-                    'assetCategory'
-                ],
-                rows: mappedData
-            };
-        } catch (error) {
-            showToast('error', 'Failed to parse Excel file');
+const validateHeaders = (headers) => {
+    const missingColumns = requiredColumns.filter(col => 
+        !headers.find(header => header === col)
+    );
+    if (missingColumns.length > 0) {
+        setErrors(missingColumns.map(col => `Missing column: ${col}`));
+        return false;
+    }
+    return true;
+};
+
+const validateRow = (row, index) => {
+    const errors = [];
+    if (!row['Type'] || !row['Type'].toString().trim()) {
+        errors.push(`Row ${index + 2}: Type is required`);
+    }
+    if (!row['Category Code'] || !row['Category Code'].toString().trim()) {
+        errors.push(`Row ${index + 2}: Category Code is required`);
+    }
+    if (!row['Major Group Code'] || !row['Major Group Code'].toString().trim()) {
+        errors.push(`Row ${index + 2}: Major Group Code is required`);
+    }
+    if (!row['Item Name'] || !row['Item Name'].toString().trim()) {
+        errors.push(`Row ${index + 2}: Item Name is required`);
+    }
+    if (!row['Primary Unit'] || !row['Primary Unit'].toString().trim()) {
+        errors.push(`Row ${index + 2}: Primary Unit is required`);
+    }
+    if (!row['HSN/SAC'] || !row['HSN/SAC'].toString().trim()) {
+        errors.push(`Row ${index + 2}: HSN/SAC is required`);
+    }
+    if (!row['DCA Code'] || !row['DCA Code'].toString().trim()) {
+        errors.push(`Row ${index + 2}: DCA Code is required`);
+    }
+    if (!row['Sub DCA Code'] || !row['Sub DCA Code'].toString().trim()) {
+        errors.push(`Row ${index + 2}: Sub DCA Code is required`);
+    }
+    return errors;
+};
+
+const parseExcel = async (buffer) => {
+    try {
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+
+        if (!rawData.length) {
+            setErrors(['Excel file is empty']);
             return null;
         }
-    };
 
-    const handleExcelUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file?.name.match(/\.(xlsx|xls)$/)) {
-            showToast('error', 'Please upload a valid Excel file');
+        if (!validateHeaders(Object.keys(rawData[0]))) {
+            return null;
+        }
+
+        const allErrors = [];
+        const mappedData = rawData.map((row, index) => {
+            const rowErrors = validateRow(row, index);
+            if (rowErrors.length > 0) {
+                allErrors.push(...rowErrors);
+            }
+
+            return {
+                type: row['Type']?.trim().toUpperCase(),
+                categoryCode: row['Category Code']?.trim(),
+                majorGroupCode: row['Major Group Code']?.trim(),
+                itemName: row['Item Name']?.trim(),
+                primaryUnit: row['Primary Unit']?.trim(),
+                hsnSac: row['HSN/SAC']?.trim(),
+                dcaCode: row['DCA Code']?.trim(),
+                subDcaCode: row['Sub DCA Code']?.trim(),
+                isAsset: row['Is Asset']?.toLowerCase() === 'yes',
+                assetCategory: row['Asset Category']?.trim() || '',
+                status: 'Verification',
+                levelId: 1,
+                active: true
+            };
+        });
+
+        if (allErrors.length > 0) {
+            setErrors(allErrors);
+            return null;
+        }
+
+        // Log the first row of mapped data for debugging
+        console.log('First row of mapped data:', mappedData[0]);
+
+        return {
+            headers: [
+                'type', 'categoryCode', 'majorGroupCode', 
+                'itemName', 'primaryUnit', 'hsnSac',
+                'dcaCode', 'subDcaCode', 'isAsset', 'assetCategory'
+            ],
+            rows: mappedData
+        };
+    } catch (error) {
+        console.error('Excel parsing error:', error);
+        setErrors(['Failed to parse Excel file']);
+        return null;
+    }
+};
+
+const handleExcelUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file?.name.match(/\.(xlsx|xls)$/)) {
+        showToast('error', 'Please upload a valid Excel file');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const data = await parseExcel(e.target.result);
+        if (data) {
+            setExcelFile(file);
+            setExcelData(data);
+            setErrors([]);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+const handleSubmit = async () => {
+    try {
+        if (!remarks.trim()) {
+            showToast('error', 'Please enter remarks');
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const data = await parseExcel(e.target.result);
-            if (data) {
-                setExcelFile(file);
-                setExcelData(data);
-                setErrors([]);
-                
-            }
+        const requestData = {
+            formData: {
+                isExcelUpload: 'true',
+                data: JSON.stringify(excelData.rows), 
+                remarks: remarks,
+                type: itemType
+            },
+            isExcelUpload: true
         };
-        reader.readAsArrayBuffer(file);
-    };
 
-    const handleSubmit = async () => {
-        try {
-            if (!remarks.trim()) {
-                showToast('error', 'Please enter remarks');
-                return;
+        console.log('Sending data:', requestData);
+        
+        const result = await dispatch(createBaseCode(requestData)).unwrap();
+        
+        if (result.success) {
+            showToast('success', `Successfully created ${result.data.results.success.length} base codes`);
+            if (result.data.results.errors.length > 0) {
+                showToast('warning', `${result.data.results.errors.length} items failed`);
             }
-    
-            // Map data before sending
-            const mappedRows = excelData.rows.map(row => ({
-                type: row['Type'].toUpperCase(),
-                categoryCode: row['Category Code'],
-                majorGroupCode: row['Major Group Code'],
-                itemName: row['Item Name'],
-                primaryUnit: row['Primary Unit'],
-                hsnSac: row['HSN/SAC Code'],
-                dcaCode: row['DCA Code'],
-                subDcaCode: row['Sub DCA Code'],
-                isAsset: row['Is Asset'].toLowerCase() === 'yes',
-                assetCategory: row['Asset Category']
-            }));
-    
-            const formData = new FormData();
-            formData.append('excelFile', excelFile);
-            formData.append('type', itemType);
-            formData.append('remarks', remarks);
-            formData.append('data', JSON.stringify(mappedRows));
-    
-            await dispatch(createBaseCode({
-                formData,
-                isExcelUpload: true
-            })).unwrap();
-    
-            if (!error) {
-                showToast('success', 'Base codes uploaded successfully');
-                setExcelFile(null);
-                setExcelData(null);
-                setErrors([]);
-                setRemarks('');
-            }
-        } catch (err) {
-            console.error('Upload error:', err);
-            showToast('error', err.message || 'Failed to upload base codes');
+            setExcelFile(null);
+            setExcelData(null);
+            setErrors([]);
+            setRemarks('');
         }
-    };
-    
+    } catch (err) {
+        console.error('Upload error:', err);
+        showToast('error', err.message || 'Failed to upload base codes');
+    }
+};
+
     return (
         <div className="p-4">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
@@ -268,7 +278,7 @@ const [remarks, setRemarks] = useState('')
             </div>
 
             {excelData && (
-                <div className="border rounded-lg overflow-auto max-h-[calc(100vh-300px)]">
+                <div className="border rounded-lg overflow-auto max-h-[calc(100vh-300px)] mb-4">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -284,7 +294,9 @@ const [remarks, setRemarks] = useState('')
                                 <tr key={rowIndex} className="hover:bg-gray-50">
                                     {excelData.headers.map((header, colIndex) => (
                                         <td key={`${rowIndex}-${colIndex}`} className="px-4 py-2 text-sm whitespace-nowrap">
-                                            {row[header]}
+                                            {typeof row[header] === 'boolean' ? 
+                                    (row[header] ? 'Yes' : 'No') : 
+                                    row[header]}
                                         </td>
                                     ))}
                                 </tr>

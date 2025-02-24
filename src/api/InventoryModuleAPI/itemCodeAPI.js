@@ -15,25 +15,33 @@ const getAuthHeader = () => {
 
 export const createBaseCode = async (data, isExcelUpload = false) => {
     try {
-        let formData;
-        if (isExcelUpload) {
-            formData = new FormData();
-            formData.append('excelFile', data);
-        }
+        const headers = {
+            ...getAuthHeader(),
+            'Content-Type': 'application/json'
+        };
+
+        // For bulk upload, data is already properly structured
+        // For single item, use as is
+        const requestData = isExcelUpload ? data : {
+            ...data,
+            isExcelUpload: 'false'
+        };
+
+        console.log('API sending data:', requestData);
 
         const response = await axios.post(
             `${API_BASE_URL}/base-code`,
-            isExcelUpload ? formData : data,
-            {
-                headers: {
-                    ...getAuthHeader(),
-                    ...(isExcelUpload && { 'Content-Type': 'multipart/form-data' })
-                }
-            }
+            requestData,
+            { headers }
         );
+        
         return response.data;
     } catch (error) {
-        throw error.response?.data || error;
+        console.error('API Error:', error.response || error);
+        if (error.response?.data) {
+            throw error.response.data;
+        }
+        throw error;
     }
 };
 
@@ -105,18 +113,42 @@ export const rejectBaseCode = async (data) => {
 // Specification Operations
 // ----------------------
 
-export const createSpecification = async (itemCodeId, data, isBulk = false) => {
+export const createSpecification = async (data, isExcelUpload = false) => {
     try {
+        const headers = {
+            ...getAuthHeader(),
+            'Content-Type': 'application/json'
+        };
+
+        // For bulk upload, data is already properly structured
+        // For single item, use as is
+        const requestData = isExcelUpload ? {
+            isExcelUpload: 'true',
+            data: JSON.stringify(data),
+            remarks: data.remarks || 'Bulk upload'
+        } : {
+            ...data,
+            isExcelUpload: 'false'
+        };
+
+        console.log('API sending specification data:', requestData);
+
         const response = await axios.post(
-            `${API_BASE_URL}/base-code/${itemCodeId}/specification`,
-            isBulk ? { specifications: data, bulkUpload: true } : data,
-            { headers: getAuthHeader() }
+            `${API_BASE_URL}/base-code/specification`,
+            requestData,
+            { headers }
         );
+        
         return response.data;
     } catch (error) {
-        throw error.response?.data || error;
+        console.error('API Error:', error.response || error);
+        if (error.response?.data) {
+            throw error.response.data;
+        }
+        throw error;
     }
 };
+
 
 export const getSpecificationsByBaseCode = async (baseCodeId) => {
     try {

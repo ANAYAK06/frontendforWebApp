@@ -26,6 +26,7 @@ import hsnSlice from "../Slices/taxModuleSlices/hsnSacCodeSlices"
 import unitSlice from "../Slices/inventoryModuleSlices/itemCodeUnitSlices"
 import clientFinalBOQ from "../Slices/projectModuleSlices/clientFinalBoqSlices"
 import clientSlice from "../Slices/accountsModuleSlices/clientSlices"
+import clientPO from "../Slices/projectModuleSlices/clientPOSlices"
 import trackingSlice from "../Slices/trackingSlices"
 
 
@@ -60,6 +61,7 @@ const  store = configureStore({
         unit:unitSlice,
         clientFinalBOQ:clientFinalBOQ,
         client:clientSlice,
+        clientPO:clientPO,
         tracking:trackingSlice
         
 

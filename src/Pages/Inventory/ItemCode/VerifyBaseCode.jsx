@@ -63,7 +63,7 @@ function VerifyBaseCode(props) {
         if (userRoleId) {
             
             dispatch(getBaseCodesForVerification({ userRoleId, type: verificationMode }));
-            console.log('Fetching base codes for verification', baseCodesForVerification);
+            
         }
     }, [dispatch, userRoleId, verificationMode]);
 
@@ -84,7 +84,7 @@ useEffect(() => {
 
    
 useEffect(() => {
-    if (verifySuccess) {
+    if (verifySuccess && selectedItem) {
         showToast('success', 'Base code verified successfully');
         closeDetails();
     }
@@ -93,6 +93,14 @@ useEffect(() => {
         closeDetails();
     }
 }, [verifySuccess, rejectSuccess, closeDetails]);
+useEffect(() => {
+    if (verifyError && selectedItem) {
+        showToast('error', verifyError);
+    }
+    if (rejectError) {
+        showToast('error', rejectError);
+    }
+}, [verifyError, rejectError]);
 
   
     const handleVerify = useCallback(async () => {
@@ -117,7 +125,7 @@ useEffect(() => {
            
             dispatch(getBaseCodesForVerification({ userRoleId, type: verificationMode }));
         } catch (error) {
-            error.message ('error', error.message);
+            console.error('Verification failed:', error);
         }
     }, [dispatch, selectedItem, remarks, verificationMode, userRoleId]);
 
@@ -143,86 +151,275 @@ useEffect(() => {
                 })).unwrap();
             }
             
-            showToast('success', 'Base code rejected successfully');
+            
             closeDetails();
             dispatch(getBaseCodesForVerification({ userRoleId, type: verificationMode }));
         } catch (error) {
-            showToast('error', error.message || 'Failed to reject base code');
+            console.error('Rejection failed:', error);
         }
         setShowRejectDialog(false);
     }, [dispatch, selectedItem, remarks, verificationMode, userRoleId, closeDetails]);
 
-    const renderVerificationTable = () => (
-        <div className="overflow-x-auto">
-            <div className="mb-4 flex justify-end space-x-2">
-                <button
-                    onClick={() => setVerificationMode('single')}
-                    className={`px-4 py-2 rounded-md ${
-                        verificationMode === 'single' 
-                            ? 'bg-indigo-600 text-white' 
-                            : 'bg-gray-100 text-gray-700'
-                    }`}
-                >
-                    Single Entries
-                </button>
-                <button
-                    onClick={() => setVerificationMode('bulk')}
-                    className={`px-4 py-2 rounded-md ${
-                        verificationMode === 'bulk' 
-                            ? 'bg-indigo-600 text-white' 
-                            : 'bg-gray-100 text-gray-700'
-                    }`}
-                >
-                    Bulk Entries
-                </button>
-            </div>
-            
-            <table className="min-w-full">
-                <thead className="text-gray-700">
-                    <tr>
-                        <th className="border px-4 py-2">Action</th>
-                        <th className="border px-4 py-2">Base Code</th>
-                        <th className="border px-4 py-2">Item Name</th>
-                        <th className="border px-4 py-2">Type</th>
-                        <th className="border px-4 py-2">Category</th>
-                        <th className="border px-4 py-2">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {baseCodesForVerification?.map((item) => (
-                        <tr key={item._id} className="hover:bg-gray-50">
-                            <td className="border px-4 py-2">
-                                <FaRegEdit
-                                    className="text-yellow-600 cursor-pointer text-2xl"
+    const renderVerificationTable = () => {
+        const { bulkEntries, singleEntries } = organizeBatchedData(baseCodesForVerification);
+    
+        return (
+            <div className="space-y-6">
+                {/* Mode Selection */}
+                <div className="mb-4 flex justify-end space-x-2">
+                    <button
+                        onClick={() => setVerificationMode('single')}
+                        className={`px-4 py-2 rounded-md ${
+                            verificationMode === 'single' 
+                                ? 'bg-indigo-600 text-white' 
+                                : 'bg-gray-100 text-gray-700'
+                        }`}
+                    >
+                        Single Entries ({singleEntries.length})
+                    </button>
+                    <button
+                        onClick={() => setVerificationMode('bulk')}
+                        className={`px-4 py-2 rounded-md ${
+                            verificationMode === 'bulk' 
+                                ? 'bg-indigo-600 text-white' 
+                                : 'bg-gray-100 text-gray-700'
+                        }`}
+                    >
+                        Bulk Entries ({bulkEntries.length})
+                    </button>
+                </div>
+    
+                {verificationMode === 'single' ? (
+                    // Single Entries Table
+                    <table className="min-w-full">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-4 py-2">Action</th>
+                                <th className="px-4 py-2">Base Code</th>
+                                <th className="px-4 py-2">Item Name</th>
+                                <th className="px-4 py-2">Type</th>
+                                <th className="px-4 py-2">Category</th>
+                                <th className="px-4 py-2">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {singleEntries.map((item) => (
+                                <tr key={item._id} className="hover:bg-gray-50">
+                                    <td className="px-4 py-2">
+                                        <FaRegEdit
+                                            className="text-yellow-600 cursor-pointer"
+                                            onClick={() => {
+                                                setSelectedItem(item);
+                                                setVerificationMode('single');
+                                            }}
+                                        />
+                                    </td>
+                                    <td className="px-4 py-2">{item.baseCode}</td>
+                                    <td className="px-4 py-2">{item.itemName}</td>
+                                    <td className="px-4 py-2">
+                                        <span className="flex items-center">
+                                            {item.type === 'MATERIAL' ? 
+                                                <FaBoxes className="mr-2" /> : 
+                                                <FaTools className="mr-2" />
+                                            }
+                                            {item.type}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-2">{item.categoryCode}</td>
+                                    <td className="px-4 py-2">
+                                        <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                                            {item.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                ) : (
+                    // Bulk Entries Cards
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {bulkEntries.map((batch) => {
+                            const summary = getBatchSummary(batch);
+                            return (
+                                <div key={batch.batchId} 
+                                    className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow cursor-pointer"
                                     onClick={() => {
-                                        setSelectedItem(item);
-                                        setVerificationMode(item.uploadBatch ? 'bulk' : 'single');
+                                        setSelectedItem(batch.items[0]); // Set first item as reference
+                                        setVerificationMode('bulk');
                                     }}
-                                />
-                            </td>
-                            <td className="border px-4 py-2">{item.baseCode}</td>
-                            <td className="border px-4 py-2">{item.itemName}</td>
-                            <td className="border px-4 py-2">
-                                <span className="flex items-center space-x-1">
-                                    {item.type === 'MATERIAL' ? 
-                                        <FaBoxes className="text-indigo-600" /> : 
-                                        <FaTools className="text-green-600" />
+                                >
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h3 className="text-lg font-semibold">Batch Upload</h3>
+                                            <p className="text-sm text-gray-500">{summary.createdAt}</p>
+                                        </div>
+                                        <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
+                                            {summary.totalItems} items
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        {Object.entries(summary.typeBreakdown).map(([type, count]) => (
+                                            <div key={type} className="flex items-center justify-between">
+                                                <span className="flex items-center">
+                                                    {type === 'MATERIAL' ? 
+                                                        <FaBoxes className="mr-2 text-indigo-600" /> : 
+                                                        <FaTools className="mr-2 text-green-600" />
+                                                    }
+                                                    {type}
+                                                </span>
+                                                <span className="font-semibold">{count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    <div className="mt-4 pt-4 border-t">
+                                        <p className="text-sm text-gray-600">
+                                            Remarks: {summary.remarks}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderBulkDetailsModal = () => {
+        const batchItems = baseCodesForVerification.filter(
+            item => item.uploadBatch === selectedItem.uploadBatch
+        );
+        const summary = getBatchSummary({ items: batchItems, createdAt: selectedItem.createdAt });
+    
+        return (
+            <div className="mt-4">
+                {/* Batch Header */}
+                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-4 rounded-t-lg">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h3 className="text-2xl font-bold">Bulk Upload Batch</h3>
+                            <p className="text-lg opacity-90">Created: {summary.createdAt}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-3xl font-bold">{summary.totalItems}</p>
+                            <p className="text-sm opacity-90">Total Items</p>
+                        </div>
+                    </div>
+                </div>
+    
+                {/* Type Distribution Cards */}
+                <div className="grid grid-cols-2 gap-4 mt-6">
+                    {Object.entries(summary.typeBreakdown).map(([type, count]) => (
+                        <div key={type} className="bg-white p-4 rounded-lg shadow-md">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center">
+                                    {type === 'MATERIAL' ? 
+                                        <FaBoxes className="text-indigo-600 h-8 w-8 mr-3" /> : 
+                                        <FaTools className="text-green-600 h-8 w-8 mr-3" />
                                     }
-                                    <span>{item.type}</span>
-                                </span>
-                            </td>
-                            <td className="border px-4 py-2">{item.categoryCode}</td>
-                            <td className="border px-4 py-2">
-                                <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs">
-                                    {item.status}
-                                </span>
-                            </td>
-                        </tr>
+                                    <div>
+                                        <p className="text-sm text-gray-600">Type</p>
+                                        <p className="text-lg font-bold">{type}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-3xl font-bold text-indigo-600">{count}</p>
+                                    <p className="text-sm text-gray-600">Items</p>
+                                </div>
+                            </div>
+                        </div>
                     ))}
-                </tbody>
-            </table>
-        </div>
-    );
+                </div>
+    
+                {/* Items Table */}
+                <div className="mt-6 bg-white rounded-lg shadow-md overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Base Code</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Major Group</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DCA Code</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sub DCA</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {batchItems.map((item) => (
+                                    <tr key={item._id} className="hover:bg-gray-50">
+                                        <td className="px-4 py-3 whitespace-nowrap">{item.baseCode}</td>
+                                        <td className="px-4 py-3">{item.itemName}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <span className="flex items-center">
+                                                {item.type === 'MATERIAL' ? 
+                                                    <FaBoxes className="text-indigo-600 mr-2" /> : 
+                                                    <FaTools className="text-green-600 mr-2" />
+                                                }
+                                                {item.type}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap">{item.categoryCode}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">{item.majorGroupCode}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">{item.primaryUnit}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            {item.dcaCode} - {dcaCodes?.find(dca => dca.code === item.dcaCode)?.name}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            {item.subDcaCode} - {subDcaCodes?.find(subDca => subDca.subCode === item.subDcaCode)?.subdcaName}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+    
+                {/* Remarks Section */}
+                <div className="mt-6 bg-white p-6 rounded-lg shadow-md">
+                    <SignatureAndRemarks
+                        signatures={selectedItem.signatureAndRemarks || []}
+                    />
+                    <div className="mt-4">
+                        <label htmlFor="remarks" className="block text-sm font-medium text-gray-700">
+                            Verification Remarks
+                        </label>
+                        <textarea
+                            id="remarks"
+                            rows="3"
+                            className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
+                            value={remarks}
+                            onChange={(e) => setRemarks(e.target.value)}
+                            placeholder="Enter verification remarks for the entire batch..."
+                        />
+                    </div>
+                </div>
+    
+                {/* Action Buttons */}
+                <div className="mt-6 flex justify-end space-x-4">
+                    <button
+                        onClick={handleVerify}
+                        disabled={isVerifyLoading}
+                        className="px-6 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-md hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                    >
+                        {isVerifyLoading ? 'Processing...' : 'Verify All Items'}
+                    </button>
+                    <button
+                        onClick={handleReject}
+                        disabled={isRejectLoading}
+                        className="px-6 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                    >
+                        {isRejectLoading ? 'Processing...' : 'Reject All Items'}
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
 
     const renderDetailsModal = () => {
         if (!selectedItem) return null;
@@ -233,6 +430,7 @@ useEffect(() => {
                     <button onClick={closeDetails} className="absolute top-4 right-4 text-gray-400 hover:text-gray-500">
                         <FaTimes className="h-6 w-6" />
                     </button>
+                    {verificationMode === 'bulk' ? renderBulkDetailsModal() : ( 
 
                     <div className="mt-4">
                         {/* Header Section */}
@@ -392,7 +590,9 @@ useEffect(() => {
                             )}
                         </div>
                     </div>
+                    )}
                 </div>
+                        
             </div>
         );
     };
@@ -466,6 +666,55 @@ useEffect(() => {
             </div>
         );
     }, [selectedItem, baseCodesForVerification]);
+    const organizeBatchedData = (data) => {
+        // Group items by uploadBatch
+        const batchedItems = data.reduce((acc, item) => {
+            if (item.uploadBatch) {
+                // This is a bulk item
+                if (!acc.bulk[item.uploadBatch]) {
+                    acc.bulk[item.uploadBatch] = {
+                        batchId: item.uploadBatch,
+                        items: [],
+                        createdAt: item.createdAt,
+                        remarks: item.remarks
+                    };
+                }
+                acc.bulk[item.uploadBatch].items.push(item);
+            } else {
+                // This is a single item
+                acc.single.push(item);
+            }
+            return acc;
+        }, { bulk: {}, single: [] });
+    
+        // Convert bulk object to array and sort by creation date
+        const bulkArray = Object.values(batchedItems.bulk).sort((a, b) => 
+            new Date(b.createdAt) - new Date(a.createdAt)
+        );
+    
+        return {
+            bulkEntries: bulkArray,
+            singleEntries: batchedItems.single
+        };
+    };
+    
+    // Helper function to get batch summary
+    const getBatchSummary = (batch) => {
+        const typeCount = batch.items.reduce((acc, item) => {
+            acc[item.type] = (acc[item.type] || 0) + 1;
+            return acc;
+        }, {});
+    
+        return {
+            totalItems: batch.items.length,
+            typeBreakdown: typeCount,
+            createdAt: new Date(batch.createdAt).toLocaleDateString(),
+            remarks: batch.remarks
+        };
+    };
+
+
+
 
     if (isVerificationLoading && !baseCodesForVerification?.length) {
         return (
