@@ -62,6 +62,8 @@ import VerifySubClient from './Pages/Accounts/VerifySubClient';
 import VerifyBaseCode from './Pages/Inventory/ItemCode/VerifyBaseCode';
 import SpecificationCreation from './Pages/Inventory/ItemCode/SpecificationCreation';
 import VerifySpecification from './Pages/Inventory/ItemCode/VerifySpecification';
+import ClientPOCreation from './Pages/Projects/ClientPO/ClientPOCreation';
+import VerifyClientPO from './Pages/Projects/ClientPO/VerifyClientPO';
 
 function App() {
 
@@ -143,6 +145,8 @@ function App() {
           <Route path='/verify-subclient' element ={ isLoggedIn ? (<VerifySubClient/>):<Navigate to="/"/>} />
           <Route path='/itemcode-specification' element ={ isLoggedIn ? (<SpecificationCreation/>):<Navigate to="/"/>} />
           <Route path='/verify-itemcodespecificationcode' element ={ isLoggedIn ? (<VerifySpecification/>):<Navigate to="/"/>} />
+          <Route path='/clientpocreation' element ={ isLoggedIn ? (<ClientPOCreation/>):<Navigate to="/"/>} />
+          <Route path='/verify-clientpo' element ={ isLoggedIn ? (<VerifyClientPO/>):<Navigate to="/"/>} />
           
 
         

@@ -10,21 +10,48 @@ const getAuthHeader = () => {
     return { Authorization: `Bearer ${token}` };
 };
 
-// Get performing cost centres
+
 export const getPerformingCostCentres = async () => {
+    console.log('Calling getPerformingCostCentres API');
     try {
-        const response = await axios.get(
-            `${API_BASE_URL}/cost-centres`,
-            {
-                headers: getAuthHeader()
+        const url = `${API_BASE_URL}/cost-centres`;
+        console.log('Cost centers URL:', url);
+        
+        const headers = getAuthHeader();
+        console.log('Using auth headers:', headers);
+        
+        const response = await axios.get(url, {
+            headers: headers
+        });
+        
+        console.log('Cost centers API raw response:', response);
+        
+        // Check if the response has the expected structure
+        if (response.data) {
+            if (response.data.success && response.data.data) {
+                console.log('Cost centers data (success.data format):', response.data.data);
+                return response.data;
+            } else {
+                console.log('Cost centers data (direct format):', response.data);
+                return {
+                    success: true,
+                    data: response.data
+                };
             }
-        );
-        return response.data;
+        } else {
+            console.error('No data in cost centers response');
+            throw new Error('No data received from API');
+        }
     } catch (error) {
-        console.error('Fetch cost centres error:', error.response?.data || error);
+        console.error('Fetch cost centres error:', error);
+        if (error.response) {
+            console.error('Error status:', error.response.status);
+            console.error('Error data:', error.response.data);
+        }
         throw error.response?.data || error;
     }
 };
+
 
 // Get won BOQs
 export const getWonBOQs = async () => {
@@ -51,7 +78,11 @@ export const getClientDetails = async (clientId) => {
                 headers: getAuthHeader()
             }
         );
+        if(response.data){
+            console.log('Client Details Data:', response.data);
+        }
         return response.data;
+       
     } catch (error) {
         console.error('Fetch client details error:', error.response?.data || error);
         throw error.response?.data || error;
@@ -136,6 +167,41 @@ export const rejectClientPO = async (id, remarks) => {
         throw error.response?.data || error;
     }
 };
+
+// Get all clients
+export const getAllClients = async () => {
+    try {
+        const response = await axios.get(
+            `${API_BASE_URL}/clients`,
+            {
+                headers: getAuthHeader()
+            }
+        );
+        console.log('All Clients Data:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Fetch all clients error:', error.response?.data || error);
+        throw error.response?.data || error;
+    }
+};
+
+// Get subclients by client ID
+export const getSubClientsByClientId = async (clientId) => {
+    try {
+        const response = await axios.get(
+            `${API_BASE_URL}/clients/${clientId}/subclients`,
+            {
+                headers: getAuthHeader()
+            }
+        );
+        console.log('Subclients Data:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('Fetch subclients error:', error.response?.data || error);
+        throw error.response?.data || error;
+    }
+};
+
 
 // Utility function to format API errors
 export const handleApiError = (error) => {

@@ -20,6 +20,7 @@ import VerifyClient from './Accounts/VerifyClient';
 import VerifySubClient from './Accounts/VerifySubClient';
 import VerifyBaseCode from './Inventory/ItemCode/VerifyBaseCode';
 import VerifySpecification from './Inventory/ItemCode/VerifySpecification';
+import VerifyClientPO from './Projects/ClientPO/VerifyClientPO';
 
 // Base components - these work independently of CCID
 const baseComponents = [
@@ -95,6 +96,10 @@ const baseComponents = [
   {
     Component: VerifySpecification,
     key: 'specificationverification',
+  },
+  {
+    Component: VerifyClientPO,
+    key: 'clientpoverification',
   }
 
 

@@ -29,11 +29,21 @@ export const getWonBOQs = createAsyncThunk(
 export const getClientDetails = createAsyncThunk(
     'clientPO/getClientDetails',
     async (clientId, { rejectWithValue }) => {
+        console.log('Fetching client details for ID:', clientId);
         try {
             const response = await clientPOAPI.getClientDetails(clientId);
+            console.log('Client Details API Response:', response);
+            
+            if (!response.data) {
+                console.error('No data received from Client Details API');
+                return rejectWithValue('No data received from API');
+            }
+            
+            console.log('Client Details Data:', response.data);
             return response.data;
         } catch (error) {
-            return rejectWithValue(error.message || 'Failed to fetch client details');
+            console.error('Error fetching client details:', error);
+            return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch client details');
         }
     }
 );
@@ -92,10 +102,37 @@ export const rejectClientPO = createAsyncThunk(
     }
 );
 
+export const getAllClients = createAsyncThunk(
+    'clientPO/getAllClients',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await clientPOAPI.getAllClients();
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(error.message || 'Failed to fetch clients');
+        }
+    }
+);
+
+//thunk for getting subclients by client ID
+export const getSubClientsByClientId = createAsyncThunk(
+    'clientPO/getSubClientsByClientId',
+    async (clientId, { rejectWithValue }) => {
+        try {
+            const response = await clientPOAPI.getSubClientsByClientId(clientId);
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(error.message || 'Failed to fetch subclients');
+        }
+    }
+);
+
 const initialState = {
     // Supporting Data
     costCentres: [],
     wonBOQs: [],
+    clients: [],
+    subClients: [],
     clientDetails: null,
     
     // Main PO Data
@@ -110,7 +147,9 @@ const initialState = {
         createPO: false,
         POVerification: false,
         verifyPO: false,
-        rejectPO: false
+        rejectPO: false,
+        clients: false,
+        subClients: false
     },
     error: {
         costCentres: null,
@@ -119,7 +158,9 @@ const initialState = {
         createPO: null,
         POVerification: null,
         verifyPO: null,
-        rejectPO: null
+        rejectPO: null,
+        clients: null,
+        subClients: null
     },
     success: {
         createPO: false,
@@ -140,7 +181,19 @@ const clientPOSlice = createSlice({
         },
         setSelectedPO: (state, action) => {
             state.selectedPO = action.payload;
-        }
+        },
+        clearSubclients: (state) => {  
+            state.subClients = [];
+        },
+        // Reset specific states
+        clearOperationState: (state, action) => {
+            const operation = action.payload;
+            if (operation) {
+                state.loading[operation] = false;
+                state.error[operation] = null;
+                state.success[operation] = false;
+            }
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -253,6 +306,32 @@ const clientPOSlice = createSlice({
                 state.loading.rejectPO = false;
                 state.error.rejectPO = action.payload;
                 state.success.rejectPO = false;
+            })
+            .addCase(getAllClients.pending, (state) => {
+                state.loading.clients = true;
+                state.error.clients = null;
+            })
+            .addCase(getAllClients.fulfilled, (state, action) => {
+                state.loading.clients = false;
+                state.clients = action.payload;
+            })
+            .addCase(getAllClients.rejected, (state, action) => {
+                state.loading.clients = false;
+                state.error.clients = action.payload;
+            })
+            
+            // Get Subclients by Client ID 
+            .addCase(getSubClientsByClientId.pending, (state) => {
+                state.loading.subClients = true;
+                state.error.subClients = null;
+            })
+            .addCase(getSubClientsByClientId.fulfilled, (state, action) => {
+                state.loading.subClients = false;
+                state.subClients = action.payload;
+            })
+            .addCase(getSubClientsByClientId.rejected, (state, action) => {
+                state.loading.subClients = false;
+                state.error.subClients = action.payload;
             });
     }
 });
@@ -260,7 +339,9 @@ const clientPOSlice = createSlice({
 export const { 
     clearErrors, 
     clearSuccess, 
-    setSelectedPO 
+    setSelectedPO,
+    clearSubclients,
+    clearOperationState
 } = clientPOSlice.actions;
 
 export default clientPOSlice.reducer;
