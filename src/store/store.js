@@ -28,7 +28,9 @@ import clientFinalBOQ from "../Slices/projectModuleSlices/clientFinalBoqSlices"
 import clientSlice from "../Slices/accountsModuleSlices/clientSlices"
 import clientPO from "../Slices/projectModuleSlices/clientPOSlices"
 import trackingSlice from "../Slices/trackingSlices"
-
+import materialRequisitionSlice from "../Slices/inventoryModuleSlices/materialRequisitionSlice"
+import userCostCentreSlice from "../Slices/userCostCentreSlices"
+import permissionSlice from "../Slices/permissionSlices"
 
 
 
@@ -62,7 +64,10 @@ const  store = configureStore({
         clientFinalBOQ:clientFinalBOQ,
         client:clientSlice,
         clientPO:clientPO,
-        tracking:trackingSlice
+        tracking:trackingSlice,
+        materialRequisition:materialRequisitionSlice,
+        userCostCentre:userCostCentreSlice,
+        permission:permissionSlice
         
 
 

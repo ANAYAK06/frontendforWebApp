@@ -64,6 +64,7 @@ import SpecificationCreation from './Pages/Inventory/ItemCode/SpecificationCreat
 import VerifySpecification from './Pages/Inventory/ItemCode/VerifySpecification';
 import ClientPOCreation from './Pages/Projects/ClientPO/ClientPOCreation';
 import VerifyClientPO from './Pages/Projects/ClientPO/VerifyClientPO';
+import MaterialRequisition from './Pages/Inventory/MaterialRequisition/MaterialRequisition';
 
 function App() {
 
@@ -147,6 +148,7 @@ function App() {
           <Route path='/verify-itemcodespecificationcode' element ={ isLoggedIn ? (<VerifySpecification/>):<Navigate to="/"/>} />
           <Route path='/clientpocreation' element ={ isLoggedIn ? (<ClientPOCreation/>):<Navigate to="/"/>} />
           <Route path='/verify-clientpo' element ={ isLoggedIn ? (<VerifyClientPO/>):<Navigate to="/"/>} />
+          <Route path='/materialrequisition' element ={ isLoggedIn ? (<MaterialRequisition/>):<Navigate to="/"/>} />
           
 
         

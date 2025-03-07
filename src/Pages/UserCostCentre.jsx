@@ -1,152 +1,195 @@
-import React, { useEffect, useState } from 'react'
-import Select from 'react-select'
+import React, { useEffect, useState } from 'react';
+import Select from 'react-select';
 import { useDispatch, useSelector } from 'react-redux';
-import {fetchUserRoles} from '../Slices/userRoleSlices'
-import axios from 'axios';
+import { fetchUserRoles } from '../Slices/userRoleSlices';
+import { fetchUsers } from '../Slices/usersSlices';
+import { 
+  fetchUserCostCentresThunk, 
+  fetchUsersWithCostCentreApplicableThunk,
+  fetchUnassignedCostCentresThunk, 
+  assignCostCentreThunk, 
+  clearOperationState
+} from '../Slices/userCostCentreSlices';
+import { Card, CardContent, CardHeader, CardTitle } from '../Components/Card';
+import { showToast } from '../utilities/toastUtilities';
 import ViewUserCostCentre from './ViewUserCostCentre';
 
-
 function UserCostCentre() {
-
-  const dispatch = useDispatch()
-  const userRoles = useSelector((state) => state.userRoles.userRoles);
+  const dispatch = useDispatch();
   
+  // Redux state with safety checks
+  const userRoles = useSelector((state) => state.userRoles?.userRoles || []);
+  const { 
+    applicableUsers = [], 
+    unassignedCostCentres = [],
+    loading = {},
+    errors = {},
+    success = {}
+  } = useSelector((state) => state.userCostCentre || {});
 
-  const [userOptons, setUserOptions] = useState([])
-  const [costCentreOption, setCostCentreOptions] = useState([])
-  const [selectedUser, setSelectedUser] = useState(null)
-  const [selectedCostCentre, setSelectedCostCentre] = useState(null)
- 
-  const [assignmentStatus, setAssignmentStatus] = useState(null)
+  // Local state
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedCostCentres, setSelectedCostCentres] = useState([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
 
-
-  useEffect(()=>{
-    dispatch(fetchUserRoles())
-   
-  }, [dispatch])
-
-
-  useEffect(()=>{
-    const fetchUserwithCostCentre = async()=>{
-      try {
-        const response = await axios.get('/api/userscostcentres/userwithcostcentre')
-        const formatedOptions = response.data.map(user=>({
-          value:user._id,
-          label:user.userName,
-          roleId:user.roleId,
-          isCostCentreApplicable:true
-        }))
-        console.log('Formatted options:', formatedOptions);
-
-        setUserOptions(formatedOptions)
-        
-      } catch (error) {
-        console.error('Error fetching cost centre users:', error);
-        
-      }
+  // Initial data loading - only once
+  useEffect(() => {
+    if (initialLoad) {
+      dispatch(fetchUserRoles());
+      dispatch(fetchUsers());
+      dispatch(fetchUsersWithCostCentreApplicableThunk());
+      setInitialLoad(false);
     }
-    fetchUserwithCostCentre()
-  },[])
+  }, [dispatch, initialLoad]);
 
-  const handleUserChange = async  (selectedOption)=>{
-    setSelectedUser(selectedOption)
-    if(selectedOption){
-    try {
-      const response = await axios.get(`/api/userscostcentres/getunassignedcostcentre/${selectedOption.value}`)
-      
-      const formattedOptions = response.data.map(cc=>({
-        value: cc.ccNo,
-        label:`${cc.ccNo}-${cc.ccName}`
-      }))
-      setCostCentreOptions(formattedOptions)
-      console.log('Formatted options:', formattedOptions);
-    } catch (error) {
-      console.error('Error fetching unassigned cost centres:', error);
-      setCostCentreOptions([]);
-      
+  // Handle success and error states
+  useEffect(() => {
+    // Handle success states
+    if (success?.assign) {
+      showToast('success', 'Cost centres assigned successfully!');
+      resetForm();
+      // Only fetch new data when needed
+      dispatch(fetchUsersWithCostCentreApplicableThunk());
+      setRefreshTrigger(prev => !prev); // Toggle to trigger ViewUserCostCentre refresh
+      dispatch(clearOperationState('assign'));
     }
-  }else{
-    setCostCentreOptions([])
-  } 
-  } 
-             
-   
+    
+    // Handle error states
+    if (errors?.assign) {
+      showToast('error', errors.assign);
+      dispatch(clearOperationState('assign'));
+    }
+  }, [success, errors, dispatch]);
 
-const   getSelectedUserRoleName = ()=>{
-    if(selectedUser){
-      const userRole = userRoles.find(role => role.roleId === selectedUser.roleId)
-      return userRole ? userRole.roleName : 'Unknown Role'
+  // Load unassigned cost centres when a user is selected
+  useEffect(() => {
+    if (selectedUser) {
+      dispatch(fetchUnassignedCostCentresThunk(selectedUser.value));
     }
-  }
+  }, [selectedUser, dispatch]);
 
-  const handleSubmit = async (e)=>{
-    e.preventDefault()
-    if(!selectedUser || !selectedCostCentre || selectedCostCentre.length === 0){
-      setAssignmentStatus('Please select both User and Cost Centres ')
-      return
-    }
-    try {
-        const payload = {
-          userId: selectedUser.value,
-          roleId: selectedUser.roleId,
-          costCentreId:selectedCostCentre.map(cc=>cc.value)
-        }
-        console.log('Sending payload:', payload);
-      const response = await axios.post('/api/userscostcentres/assigncostcentre', payload)
-      setAssignmentStatus('Cost centre assigned successfully')
-      console.log(response.data)
-      setSelectedUser(null)
-      setSelectedCostCentre(null)
-      setCostCentreOptions([])
-    } catch (error) {
-      console.error('Error assigning cost centre:', error.response?.data || error.message);
-        setAssignmentStatus('Error assigning cost centre. Please try again.');
-    }
-  }
-  const handleCostCentreChange = (selectedOption) => {
-    setSelectedCostCentre(selectedOption)
-  }
+  // Reset form states
+  const resetForm = () => {
+    setSelectedUser(null);
+    setSelectedCostCentres([]);
+  };
 
+  // Get user role name
+  const getSelectedUserRoleName = () => {
+    if (selectedUser) {
+      const userRole = userRoles.find(role => role.roleId === selectedUser.roleId);
+      return userRole ? userRole.roleName : 'Unknown Role';
+    }
+    return '';
+  };
+
+  // Handle user selection
+  const handleUserChange = (option) => {
+    setSelectedUser(option);
+    setSelectedCostCentres([]);
+  };
+
+  // Handle cost centre selection
+  const handleCostCentreChange = (options) => {
+    setSelectedCostCentres(options || []);
+  };
+
+  // Handle form submission for assigning cost centres
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!selectedUser || !selectedCostCentres || selectedCostCentres.length === 0) {
+      showToast('error', 'Please select both a user and at least one cost centre');
+      return;
+    }
+    
+    const payload = {
+      userId: selectedUser.value,
+      roleId: selectedUser.roleId,
+      costCentreId: selectedCostCentres.map(cc => cc.value)
+    };
+    
+    dispatch(assignCostCentreThunk(payload));
+  };
 
   return (
-      <>
-    <div className='container mx-8 mt-10'>
-      <h2  className='text-2xl font-semibold mb-4'>Assign Cost Centre to User</h2>
-      <hr />
-      <form action="" onSubmit={handleSubmit} className='mx-w-md mx-auto w-80'>
-        <Select 
-        className='mt-2'
-        options={userOptons}
-        placeholder = 'Select the User'
-        onChange={handleUserChange}
-        />
-        {
-          selectedUser && (
-            <div>
-              <p>User Role:{getSelectedUserRoleName()}</p>
+    <div className="container mx-auto p-4">
+      <h2 className="text-2xl font-semibold mb-4">Cost Centre Management</h2>
+      
+      {/* Assign Cost Centre Form */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Assign Cost Centre to User</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="max-w-lg">
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Select User</label>
               <Select
-              className='mt-2'
-              options={costCentreOption}
-              placeholder='Select CC Codes'
-              isMulti
-              onChange={handleCostCentreChange}
-              value={selectedCostCentre}
+                options={(applicableUsers || []).map(user => ({
+                  value: user._id,
+                  label: user.userName,
+                  roleId: user.roleId
+                }))}
+                placeholder="Select a user"
+                onChange={handleUserChange}
+                value={selectedUser}
+                className="w-full"
+                isLoading={loading?.fetchApplicableUsers}
               />
             </div>
-          )
-        }
-        <button type='submit' className='w-full mt-2 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:bg-indigo-700'>Submit</button>
-
-      </form>
-
-      <div>
-      <ViewUserCostCentre/>
+            
+            {selectedUser && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  <span className="font-medium">User Role:</span> {getSelectedUserRoleName()}
+                </p>
+                <label className="block text-sm font-medium mb-1">Select Cost Centres</label>
+                <Select
+                  options={(unassignedCostCentres || []).map(cc => ({
+                    value: cc.ccNo,
+                    label: `${cc.ccNo} - ${cc.ccName}`
+                  }))}
+                  placeholder="Select cost centres"
+                  onChange={handleCostCentreChange}
+                  value={selectedCostCentres}
+                  isMulti
+                  className="w-full"
+                  isLoading={loading?.fetchUnassigned}
+                />
+              </div>
+            )}
+            
+            <button 
+              type="submit" 
+              className="w-full mt-4 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:bg-indigo-700 disabled:opacity-50"
+              disabled={loading?.assign || !selectedUser || !selectedCostCentres || selectedCostCentres.length === 0}
+            >
+              {loading?.assign ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                  Assigning...
+                </div>
+              ) : (
+                'Assign Cost Centres'
+              )}
+            </button>
+          </form>
+        </CardContent>
+      </Card>
+      
+      {/* View User Cost Centres */}
+      <Card>
+        <CardHeader>
+          <CardTitle>View Assigned Cost Centres</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ViewUserCostCentre refreshTrigger={refreshTrigger} />
+        </CardContent>
+      </Card>
     </div>
-    
-    </div>
-    
-    </>
-  )
+  );
 }
 
-export default UserCostCentre
+export default UserCostCentre;
