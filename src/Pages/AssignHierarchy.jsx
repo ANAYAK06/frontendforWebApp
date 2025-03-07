@@ -15,7 +15,8 @@ import {
   FiX,
   FiLayers,
   FiUsers,
-  FiSettings
+  FiSettings,
+  FiEdit
 } from "react-icons/fi";
 import { 
   GiPathDistance 
@@ -27,7 +28,12 @@ import { fetchUserRoles } from '../Slices/userRoleSlices';
 import { fetchCostCentreTypes } from '../Slices/costCentreTypeSlices';
 import { 
   fetchAllPermissionsThunk, 
-  createPermissionThunk 
+  createPermissionThunk,
+  updatePermissionThunk,
+  fetchPermissionByIdThunk,
+  checkPendingWorkflowsThunk,
+  canDeleteWorkflowThunk,
+  deletePermissionThunk
 } from '../Slices/permissionSlices';
 
 // Import components
@@ -61,7 +67,19 @@ function AssignHierarchy() {
   const userRoles = useSelector((state) => state.userRoles?.userRoles || []);
   const costCentreTypes = useSelector((state) => state.costCentreTypes?.costCentreTypes || []);
   const workflows = useSelector((state) => state.permission?.workflows || []);
-  const loading = useSelector((state) => state.permission?.loading.add || false);
+  const loading = useSelector((state) => {
+    return {
+      create: state.permission?.loading.create || false,
+      update: state.permission?.loading.update || false,
+      fetchById: state.permission?.loading.fetchById || false,
+      checkPending: state.permission?.loading.checkPending || false,
+      canDelete: state.permission?.loading.canDelete || false,
+      delete: state.permission?.loading.delete || false
+    };
+  });
+  const currentWorkflow = useSelector((state) => state.permission?.currentWorkflow);
+  const pendingWorkflows = useSelector((state) => state.permission?.pendingWorkflows || []);
+  const canDeleteStatus = useSelector((state) => state.permission?.canDeleteStatus || {});
   
   // Local state for menu data
   const [menuWholeData, setMenuWholeData] = useState([]);
@@ -73,6 +91,8 @@ function AssignHierarchy() {
   const [rolesByTab, setRolesByTab] = useState({});
   const [tempSaveData, setTempSaveData] = useState({});
   const [saveTabs, setSaveTabs] = useState({});
+  const [editingWorkflow, setEditingWorkflow] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   
   // State for workflow selection
   const [workflowGroups, setWorkflowGroups] = useState([]);
@@ -84,6 +104,8 @@ function AssignHierarchy() {
   // State for feedback
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [pendingDialogOpen, setPendingDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Initial data loading
   useEffect(() => {
@@ -116,6 +138,13 @@ function AssignHierarchy() {
       setExistingWorkflows(existingIds);
     }
   }, [workflows]);
+
+  // Populate form data when currentWorkflow changes (for edit mode)
+  useEffect(() => {
+    if (isEditMode && currentWorkflow) {
+      populateFormForEditing(currentWorkflow);
+    }
+  }, [currentWorkflow, isEditMode]);
 
   // Extract workflow groups from menu data
   const extractGroups = (data) => {
@@ -152,6 +181,98 @@ function AssignHierarchy() {
       return newRoles;
     });
   }, [costCentreTypes]);
+
+  // Populate form for editing an existing workflow
+  const populateFormForEditing = (workflow) => {
+    if (!workflow) return;
+
+    // Set workflow basic info
+    setIsCostCentreApplicable(workflow.isCostCentreApplicable);
+    setSelectedWorkflow({
+      value: workflow.workflowId,
+      label: workflow.workflowname
+    });
+
+    // Find and set workflow group
+    if (menuWholeData.length > 0) {
+      const foundWorkflow = menuWholeData.flatMap(menu => menu.submenuItems || [])
+        .find(item => item.workflowId === workflow.workflowId);
+      
+      if (foundWorkflow) {
+        setSelectedWorkflowGroup({
+          value: foundWorkflow.groupId,
+          label: foundWorkflow.group
+        });
+      }
+    }
+
+    // Initialize tabs and roles
+    const newRolesByTab = {};
+    const newSaveTabs = {};
+    const newTempSaveData = {};
+
+    if (workflow.workflowDetails && workflow.workflowDetails.length > 0) {
+      if (workflow.isCostCentreApplicable) {
+        // Group roles by cost center type
+        const groupedRoles = workflow.workflowDetails.reduce((acc, detail) => {
+          const ccType = detail.costCentreType;
+          if (!acc[ccType]) acc[ccType] = [];
+          acc[ccType].push(detail);
+          return acc;
+        }, {});
+
+        // For each cost center type, set up a tab
+        costCentreTypes.forEach((ccType, index) => {
+          const ccTypeRoles = groupedRoles[ccType.value] || [];
+          
+          if (ccTypeRoles.length > 0) {
+            // Sort roles by levelId
+            const sortedRoles = [...ccTypeRoles].sort((a, b) => a.levelId - b.levelId);
+            
+            newRolesByTab[index] = sortedRoles.map(role => ({
+              roleId: role.roleId,
+              approvalLimit: role.approvalLimit || '',
+              levelId: role.levelId,
+              pathId: role.pathId,
+              costCentreType: role.costCentreType
+            }));
+            
+            newSaveTabs[index] = true;
+            newTempSaveData[index] = { roles: newRolesByTab[index] };
+          } else {
+            // Initialize empty tab if no roles for this cost center
+            newRolesByTab[index] = [{
+              roleId: null,
+              approvalLimit: '',
+              levelId: 0,
+              pathId: 0,
+              costCentreType: ccType.value
+            }];
+            newSaveTabs[index] = false;
+          }
+        });
+      } else {
+        // For non-cost center workflows, just use tab 0
+        const sortedRoles = [...workflow.workflowDetails].sort((a, b) => a.levelId - b.levelId);
+        
+        newRolesByTab[0] = sortedRoles.map(role => ({
+          roleId: role.roleId,
+          approvalLimit: role.approvalLimit || '',
+          levelId: role.levelId,
+          pathId: role.pathId,
+          costCentreType: null
+        }));
+        
+        newSaveTabs[0] = true;
+        newTempSaveData[0] = { roles: newRolesByTab[0] };
+      }
+    }
+
+    setRolesByTab(newRolesByTab);
+    setSaveTabs(newSaveTabs);
+    setTempSaveData(newTempSaveData);
+    setActiveTab(0);
+  };
 
   // Get verification path ID based on cost center type
   const getVerificationPathId = useCallback((ccid) => {
@@ -284,14 +405,23 @@ function AssignHierarchy() {
       }));
 
     const uniqueWorkflows = Array.from(new Map(workflows.map(item => [item.workflowname, item])).values());
-    const filteredWorkflows = uniqueWorkflows.filter(workflow => !existingWorkflows.includes(workflow.workflowId));
+    
+    // Don't filter out the current workflow in edit mode
+    const filteredWorkflows = isEditMode && editingWorkflow
+      ? uniqueWorkflows
+      : uniqueWorkflows.filter(workflow => !existingWorkflows.includes(workflow.workflowId));
+    
     const formattedWorkflowOptions = filteredWorkflows.map(workflow => ({
       value: workflow.workflowId,
       label: workflow.workflowname
     }));
 
     setWorkflowOptions(formattedWorkflowOptions);
-    setSelectedWorkflow(null);
+    
+    // Don't reset selected workflow in edit mode
+    if (!isEditMode) {
+      setSelectedWorkflow(null);
+    }
   };
 
   // Handle workflow selection change
@@ -360,6 +490,28 @@ function AssignHierarchy() {
     return `Verifier Level ${roleIndex}`;
   }, []);
 
+  // Check if workflow has pending tasks before edit/delete
+  const checkPendingTasks = async (workflowId) => {
+    try {
+      await dispatch(checkPendingWorkflowsThunk(workflowId)).unwrap();
+      return true;
+    } catch (error) {
+      showToast('error', 'Error checking pending workflows');
+      return false;
+    }
+  };
+
+  // Check if workflow can be deleted
+  const checkCanDelete = async (workflowId) => {
+    try {
+      const result = await dispatch(canDeleteWorkflowThunk(workflowId)).unwrap();
+      return result.canDelete;
+    } catch (error) {
+      showToast('error', 'Error checking if workflow can be deleted');
+      return false;
+    }
+  };
+
   // Submit the workflow hierarchy
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -392,12 +544,24 @@ function AssignHierarchy() {
     };
 
     try {
-      await dispatch(createPermissionThunk(payload)).unwrap();
-      setHierarchyPopup(false);
-      showToast('success', 'Workflow hierarchy saved successfully');
-      resetForm();
+      if (isEditMode) {
+        // For edit, use updatePermissionThunk
+        await dispatch(updatePermissionThunk({ 
+          workflowId: selectedWorkflow.value, 
+          workflowData: payload 
+        })).unwrap();
+        setHierarchyPopup(false);
+        setSuccessDialogOpen(true);
+        showToast('success', 'Workflow hierarchy updated successfully');
+      } else {
+        // For create, use createPermissionThunk
+        await dispatch(createPermissionThunk(payload)).unwrap();
+        setHierarchyPopup(false);
+        setSuccessDialogOpen(true);
+        showToast('success', 'Workflow hierarchy created successfully');
+      }
     } catch (error) {
-      showToast('error', error?.error || 'Error saving workflow hierarchy');
+      showToast('error', error?.error || `Error ${isEditMode ? 'updating' : 'creating'} workflow hierarchy`);
     }
   };
 
@@ -414,9 +578,13 @@ function AssignHierarchy() {
     setSaveTabs({});
     setValidationError('');
     setSuccessDialogOpen(false);
+    setIsEditMode(false);
+    setEditingWorkflow(null);
+    setPendingDialogOpen(false);
+    setDeleteDialogOpen(false);
   };
 
-  // Open hierarchy popup
+  // Open hierarchy popup for creating new workflow
   const addNewHierarchy = () => {
     // Clear any previous state before opening the popup
     setSelectedWorkflow(null);
@@ -426,9 +594,64 @@ function AssignHierarchy() {
     setSaveTabs({});
     setValidationError('');
     setSuccessDialogOpen(false);
+    setIsEditMode(false);
+    setEditingWorkflow(null);
     
     // Then open the popup
     setHierarchyPopup(true);
+  };
+
+  // Handle edit workflow
+  const handleEditWorkflow = async (workflow) => {
+    // Check for pending workflows first
+    const hasPendingChecked = await checkPendingTasks(workflow.workflowId);
+    if (!hasPendingChecked) return;
+    
+    if (pendingWorkflows && pendingWorkflows.length > 0) {
+      setEditingWorkflow(workflow);
+      setPendingDialogOpen(true);
+      return;
+    }
+    
+    // Set edit mode and fetch workflow details
+    setIsEditMode(true);
+    setEditingWorkflow(workflow);
+    setHierarchyPopup(true);
+    
+    try {
+      await dispatch(fetchPermissionByIdThunk(workflow.workflowId)).unwrap();
+    } catch (error) {
+      showToast('error', 'Error fetching workflow details');
+      resetForm();
+    }
+  };
+
+  // Handle delete workflow
+  const handleDeleteWorkflow = async (workflow) => {
+    // Check if workflow can be deleted
+    const canDelete = await checkCanDelete(workflow.workflowId);
+    if (!canDelete) {
+      showToast('error', 'This workflow cannot be deleted as it is being used');
+      return;
+    }
+    
+    // Set current workflow for deletion and show confirmation dialog
+    setEditingWorkflow(workflow);
+    setDeleteDialogOpen(true);
+  };
+
+  // Confirm delete workflow
+  const confirmDeleteWorkflow = async () => {
+    if (!editingWorkflow) return;
+    
+    try {
+      await dispatch(deletePermissionThunk(editingWorkflow.workflowId)).unwrap();
+      showToast('success', 'Workflow deleted successfully');
+      setDeleteDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      showToast('error', error?.error || 'Error deleting workflow');
+    }
   };
 
   return (
@@ -453,16 +676,19 @@ function AssignHierarchy() {
       </Card>
       
       {/* View existing workflows */}
-      <ViewWorkFlow onEditWorkflow={(workflow) => {
-        // Handle edit functionality if needed
-      }} />
+      <ViewWorkFlow 
+        onEditWorkflow={handleEditWorkflow}
+        onDeleteWorkflow={handleDeleteWorkflow} 
+      />
       
       {/* Add/Edit Hierarchy Dialog */}
       {hierarchyPopup && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-10">
           <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Assign Workflow Hierarchy</h2>
+              <h2 className="text-xl font-semibold text-gray-800">
+                {isEditMode ? 'Edit Workflow Hierarchy' : 'Assign Workflow Hierarchy'}
+              </h2>
               <button
                 onClick={() => setHierarchyPopup(false)}
                 className="p-1 rounded-full hover:bg-gray-100"
@@ -491,6 +717,7 @@ function AssignHierarchy() {
                     placeholder="Select a workflow group"
                     classNamePrefix="react-select"
                     className="react-select-container"
+                    isDisabled={isEditMode}
                   />
                 </div>
                 <div>
@@ -503,7 +730,7 @@ function AssignHierarchy() {
                     onChange={workflowChange}
                     options={workflowOptions}
                     placeholder="Select workflow"
-                    isDisabled={!selectedWorkflowGroup}
+                    isDisabled={!selectedWorkflowGroup || isEditMode}
                     classNamePrefix="react-select"
                     className="react-select-container"
                   />
@@ -540,7 +767,7 @@ function AssignHierarchy() {
                               <div key={`${tabIndex}-${roleIndex}`} className="flex flex-wrap items-center gap-3 p-2 border border-gray-200 bg-white rounded-md">
                                 <div className="flex items-center min-w-[150px]">
                                   {roleIndex === 0 ? (
-                                    <BiSolidLayerPlus className="text-blue-500 mr-1" />
+                                    <BiSolidLayerPlus className="text-indigo-500 mr-1" />
                                   ) : (
                                     <FiUsers className="text-green-500 mr-1" />
                                   )}
@@ -620,6 +847,18 @@ function AssignHierarchy() {
                             >
                               <FiSave className="mr-1" /> Save Tab
                             </button>
+                            
+                            {saveTabs[tabIndex] && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSaveTabs(prev => ({...prev, [tabIndex]: false}));
+                                }}
+                                className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-amber-500 text-white hover:bg-amber-600"
+                              >
+                                <FiEdit className="mr-1" /> Edit
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -631,7 +870,7 @@ function AssignHierarchy() {
                           <div key={roleIndex} className="flex flex-wrap items-center gap-3 p-2 border border-gray-200 bg-white rounded-md">
                             <div className="flex items-center min-w-[150px]">
                               {roleIndex === 0 ? (
-                                <BiSolidLayerPlus className="text-blue-500 mr-1" />
+                                <BiSolidLayerPlus className="text-indigo-500 mr-1" />
                               ) : (
                                 <FiUsers className="text-green-500 mr-1" />
                               )}
@@ -711,6 +950,18 @@ function AssignHierarchy() {
                         >
                           <FiSave className="mr-1" /> Save Tab
                         </button>
+                        
+                        {saveTabs[0] && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSaveTabs(prev => ({...prev, 0: false}));
+                            }}
+                            className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium bg-amber-500 text-white hover:bg-amber-600"
+                          >
+                            <FiEdit className="mr-1" /> Edit
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -733,9 +984,9 @@ function AssignHierarchy() {
                       ? 'bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
-                  disabled={!isAllTabsSaved || !selectedWorkflow || loading}
+                  disabled={!isAllTabsSaved || !selectedWorkflow || loading.create || loading.update}
                 >
-                  {loading ? 'Saving...' : 'Submit'}
+                  {loading.create || loading.update ? 'Saving...' : isEditMode ? 'Update' : 'Submit'}
                 </button>
               </div>
             </form>
@@ -749,12 +1000,61 @@ function AssignHierarchy() {
           <AlertDialogHeader>
             <AlertDialogTitle>Success</AlertDialogTitle>
             <AlertDialogDescription>
-              Workflow hierarchy has been saved successfully.
+              Workflow hierarchy has been {isEditMode ? 'updated' : 'saved'} successfully.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={resetForm}>
               Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Pending Workflows Dialog */}
+      <AlertDialog open={pendingDialogOpen} onOpenChange={setPendingDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Warning</AlertDialogTitle>
+            <AlertDialogDescription>
+              There are pending workflows that use this hierarchy. Editing may affect existing workflows.
+              Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex justify-between">
+            <AlertDialogCancel onClick={() => setPendingDialogOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setPendingDialogOpen(false);
+              setIsEditMode(true);
+              setHierarchyPopup(true);
+              dispatch(fetchPermissionByIdThunk(editingWorkflow.workflowId));
+            }}>
+              Continue Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this workflow hierarchy? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex justify-between">
+            <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteWorkflow}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-500"
+            >
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
